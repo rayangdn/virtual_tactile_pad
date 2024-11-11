@@ -39,8 +39,15 @@ RUN sudo apt-get update && sudo apt-get install -y \
     alsa-utils \
     netbase \
     ros-noetic-vrpn-client-ros \
+    ros-${ROS_DISTRO}-joint-state-publisher-gui \
     && sudo apt-get upgrade -y && sudo apt-get clean
-#RUN sudo apt update && sudo apt install -y ros-core-dev -y
+
+# Install PyTorch and other Python dependencies
+RUN pip3 install --no-cache-dir \
+    torch \
+    torchvision \
+    torchaudio
+
 # Handle SIMD option
 RUN if [ "${USE_SIMD}" = "ON" ] ; \ 
     then export CMAKE_CXX_FLAGS="-march=native -faligned-new" ; fi
@@ -64,25 +71,23 @@ RUN sudo chown -R ${USER}:${HOST_GID} .bashrc
 RUN if [ "${USE_SIMD}" = "ON" ] ; \
     then echo "export ENABLE_SIMD=ON" >> /home/${USER}/.bashrc ; fi
 
-### Add environement variables to bashrc
-
-RUN sudo apt install python3-rosdep python3-rosinstall python3-rosinstall-generator python3-wstool build-essential 
-
+RUN sudo apt install -y \
+    python3-rosdep \
+    python3-rosinstall \
+    python3-rosinstall-generator \
+    python3-wstool \
+    build-essential 
 
 ### Build ros workspace
 WORKDIR /home/${USER}/ros_ws/
 RUN source /opt/ros/noetic/setup.bash && rosdep install --from-paths src --ignore-src -r -y
 RUN source /opt/ros/noetic/setup.bash && rosdep install roscpp
-RUN source /opt/ros/noetic/setup.bash && catkin_make;
-
+RUN source /opt/ros/noetic/setup.bash && catkin_make
 
 WORKDIR /home/${USER}/ros_ws/
 # Source the ROS setup file when the container starts
-
 RUN echo "source /opt/ros/noetic/setup.bash && \
-                  source devel/setup.bash" >> /home/${USER}/.bashrc ;
-                  
+                  source devel/setup.bash" >> /home/${USER}/.bashrc
+
 ### Final apt clean
 RUN sudo apt update && sudo apt upgrade -y && sudo apt clean
-
-

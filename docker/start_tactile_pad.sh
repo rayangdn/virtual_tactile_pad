@@ -61,25 +61,26 @@ fi
 
 # Handle interactive/server specific arguments
 if [ "${MODE}" != "connect" ]; then
-
     # Check if a container with this name is already running
     if [ "$( docker container inspect -f '{{.State.Status}}' ${CONTAINER_NAME} 2>/dev/null)" == "running" ]; then
         echo "A container named ${CONTAINER_NAME} is already running. Stopping it."
         docker stop ${CONTAINER_NAME}
     fi
 
-    # Check if a NVIDIA GPU is available
-    #if [[ $(sudo lshw -C display | grep vendor) =~ NVIDIA ]]; then
-    #    USE_NVIDIA_TOOLKIT=true
-    #    echo "Detected NVIDIA graphic card, giving access to the container."
-    #else
-    #    USE_NVIDIA_TOOLKIT=false
-    #fi
+    # Add graphics device access
+    FWD_ARGS+=(--device=/dev/dri:/dev/dri)
+    
+    # Add X11 forwarding for GUI
+    FWD_ARGS+=(-e DISPLAY="${DISPLAY}")
+    FWD_ARGS+=(-v /tmp/.X11-unix:/tmp/.X11-unix:rw)
+    
+    # Add required groups for graphics
+    FWD_ARGS+=(--group-add video)
+    FWD_ARGS+=(--group-add render)
 	
     # network for ros
     FWD_ARGS+=(--net host)
     FWD_ARGS+=(--env ROS_HOSTNAME="$(hostname)")
-    #HOST_IP=$(hostname -I | cut -d' ' -f1)
     FWD_ARGS+=(--env ROS_IP="$ROS_IP")
 
     # Handle GPU usage
@@ -99,7 +100,6 @@ if [ "${MODE}" != "connect" ]; then
     FWD_ARGS+=(--volume="virtual_tactile_pad:/home/ros/ros_ws/src:rw")
 fi
 
-    
 # Trick aica-docker into making a server on a host network container
 if [ "${MODE}" == "server" ]; then
     FWD_ARGS+=("--detach")
@@ -110,7 +110,6 @@ if [ "${MODE}" == "" ]; then
     MODE=interactive
 fi
 
-
 # Start docker using aica
 aica-docker \
     "${MODE}" \
@@ -118,4 +117,4 @@ aica-docker \
     -u "${USERNAME}" \
     -n "${CONTAINER_NAME}" \
     ${GPU_FLAG} \
-    "${FWD_ARGS[@]}" \
+    "${FWD_ARGS[@]}"
