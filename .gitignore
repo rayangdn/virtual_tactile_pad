@@ -10,18 +10,37 @@ ros_ws/logs/
 ros_ws/*
 !ros_ws/src/
 
+# CMake specific files (including those in src)
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+CTestTestfile.cmake
+Makefile
+compile_commands.json
+*.cmake
+*.make
+catkin_generated/
+gtest/
+test_results/
+_catkin_empty_exported_target
+
+# Ignore CMake files recursively in src
+ros_ws/src/**/CMakeFiles/
+ros_ws/src/**/cmake_install.cmake
+ros_ws/src/**/Makefile
+ros_ws/src/**/CMakeCache.txt
+
 # Common ROS and C++ ignores
 *.pyc
 *.pyo
 *.so
 *.o
 *.a
-*.cmake
 *.internal
 *~
 .Python
 
-# IDE specific 
+# IDE specific (optional)
 .vscode/
 .idea/
 *.swp

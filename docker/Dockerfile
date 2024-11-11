@@ -49,7 +49,7 @@ RUN if [ "${USE_SIMD}" = "ON" ] ; \
 WORKDIR /home/${USER}
 RUN git clone --depth 1 https://github.com/rayangdn/virtual_tactile_pad.git
 
-RUN cp -R virtual_tactile_pad/ros_ws/src/ ros_ws/src/
+RUN cp -R virtual_tactile_pad/ros_ws/src ros_ws/
 
 #Cleaning the workspace
 RUN rm -r /home/${USER}/virtual_tactile_pad
@@ -77,11 +77,10 @@ RUN source /opt/ros/noetic/setup.bash && catkin_make;
 
 
 WORKDIR /home/${USER}/ros_ws/
-# Source the ROS setup file and run your roslaunch command when the container starts
+# Source the ROS setup file when the container starts
 
 RUN echo "source /opt/ros/noetic/setup.bash && \
-                  source devel/setup.bash && \
-                  roslaunch virtual_tactile_pad digital_recognition.launch" >> /home/${USER}/.bashrc ;
+                  source devel/setup.bash" >> /home/${USER}/.bashrc ;
                   
 ### Final apt clean
 RUN sudo apt update && sudo apt upgrade -y && sudo apt clean

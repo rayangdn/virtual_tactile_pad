@@ -92,11 +92,11 @@ if [ "${MODE}" != "connect" ]; then
     docker volume rm virtual_tactile_pad
     docker volume create --driver local \
     --opt type="none" \
-    --opt device="${PWD}/../src/" \
+    --opt device="${PWD}/../ros_ws/src/" \
     --opt o="bind" \
     "virtual_tactile_pad"
 
-    FWD_ARGS+=(--volume="virtual_tactile_pad:/home/rayann/virtual_tactile_pad:rw")
+    FWD_ARGS+=(--volume="virtual_tactile_pad:/home/ros/ros_ws/src:rw")
 fi
 
     

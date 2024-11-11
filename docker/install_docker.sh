@@ -105,7 +105,7 @@ if ! [ -x "$(command -v aica-docker)" ]; then
         case $yn in
             [Yy]* ) 
                 echo "Installing aica-docker..."
-                git clone git@github.com:aica-technology/docker-images.git /tmp/docker-images/
+                git clone https://github.com/aica-technology/docker-images.git /tmp/docker-images/
                 sudo bash /tmp/docker-images/scripts/install-aica-docker.sh
                 rm -rf /tmp/docker-images
                 echo "aica-docker installed."

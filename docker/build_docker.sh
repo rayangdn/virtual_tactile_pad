@@ -1,9 +1,8 @@
 #!/bin/bash
 
 # Name and base and options
-IMAGE_NAME=epfl-lasa/virtual_tactile_pad                        # Chose any name for your image (but make sure to report it in start_docker)
+IMAGE_NAME=epfl-lasa/virtual_tactile_pad                       # Chose any name for your image (but make sure to report it in start_docker)
 ROS_DISTRO=noetic                                         # Possible: noetic, melodic
-USE_SIMD=OFF                                              # Possible: ON, OFF
 BASE_IMAGE=ghcr.io/aica-technology/ros-ws:${ROS_DISTRO}   # Do not modify
 
 # Help
@@ -35,15 +34,11 @@ while [ "$#" -gt 0 ]; do
     ;;
   -d | --distro)
     ROS_DISTRO=$2
-    if [[ "$ROS_DISTRO" != "galactic" && "$ROS_DISTRO" != "melodic" ]] ; then
+    if [[ "$ROS_DISTRO" != "noetic" && "$ROS_DISTRO" != "melodic" ]] ; then
       echo -e "\033[31mERROR: Distro \"$ROS_DISTRO\" is not supported"; \
       exit 1;
     fi
     shift 2
-    ;;
-  --smid)
-    USE_SIMD=ON
-    shift 1
     ;;
   -h | --help)
     echo "${HELP_MESSAGE}"
@@ -56,8 +51,7 @@ while [ "$#" -gt 0 ]; do
   esac
 done
 
-
-# Try to pull image
+# Try to pull image, only if needed and gives info on whether it's successful or not.
 if [[ "$(docker images -q ${BASE_IMAGE} 2> /dev/null)" != "" ]]; \
   then echo "Base image already exists on the computer, proceeding to build docker";
   else echo -e "Base image does not exists ont the computer, pulling it..."; \
@@ -65,12 +59,12 @@ if [[ "$(docker images -q ${BASE_IMAGE} 2> /dev/null)" != "" ]]; \
 fi
 
 # Setup build flags
-BUILD_FLAGS+=(--build-arg ROS_DISTRO="${ROS_DISTRO}")
-BUILD_FLAGS+=(--build-arg USE_SIMD=${USE_SIMD})
-BUILD_FLAGS+=(-t "${IMAGE_NAME}")
-BUILD_FLAGS+=(--build-arg HOST_GID=$(id -g))   # Pass the correct GID to avoid issues with mounted volumes
-BUILD_FLAGS+=(--ssh default="${SSH_AUTH_SOCK}")
-BUILD_FLAGS+=(--build-arg GIT_NAME=$(git config user.name))    # Pass git user info to be able to pull
+BUILD_FLAGS+=(--build-arg ROS_DISTRO="${ROS_DISTRO}")          # We expect your Dockerfile to have this ARG to know which ROS distro to start from
+BUILD_FLAGS+=(-t "${IMAGE_NAME}")                              # Add image name to build flags
+BUILD_FLAGS+=(--build-arg HOST_GID=$(id -g))                   # Pass the correct GID to avoid issues with mounted volumes. We expect your docker file to have this arg and do something with it.
+BUILD_FLAGS+=(--ssh default="${SSH_AUTH_SOCK}")                            
+BUILD_FLAGS+=(--build-arg GIT_NAME=$(git config user.name))    # Pass git user info to be able to pull. We expect your docker file to have this argument and do something with it
 BUILD_FLAGS+=(--build-arg GIT_EMAIL=$(git config user.email))
 
+# Format all the flags in the build command and execute the build
 DOCKER_BUILDKIT=1 docker build "${BUILD_FLAGS[@]}" .
