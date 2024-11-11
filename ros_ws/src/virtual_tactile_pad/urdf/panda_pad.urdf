@@ -1,0 +1,50 @@
+<?xml version="1.0" ?>
+
+<robot name="panda" xmlns:xacro="http://www.ros.org/wiki/xacro">
+  
+  <!-- Load the YAML configuration file -->
+  <xacro:property name="config" value="${xacro.load_yaml('../config/config.yaml')}"/>
+  
+  <!-- Include the Panda arm URDF -->
+  <xacro:include filename="panda_arm.urdf" />
+  
+  <!-- Use the use_ft_sensor parameter from YAML instead of hardcoded argument -->
+  <xacro:if value="${config['use_ft_sensor']}">
+    <!-- Include the ATI pad URDF -->
+    <xacro:include filename="ati_pad.urdf" />
+    <!-- Joint to Connect ATI Gamma Pad to Panda joint 7 -->
+    <joint name="panda_joint_to_ati_gamma" type="fixed">
+      <parent link="panda_link7"/>
+      <child link="ati_net_gamma"/>
+      <origin xyz="0 0 0.125" rpy="0 3.141592654 1.05398163"/>
+    </joint>
+  </xacro:if>
+
+  <xacro:unless value="${config['use_ft_sensor']}">
+    <!-- Include the tactile pad URDF -->
+    <xacro:include filename="tactile_pad.urdf" />
+    <!-- Joint to Connect Tactile Sensing Pad to Panda joint 7 -->
+    <joint name="panda_joint_to_mounting_pad" type="fixed">
+      <parent link="panda_link7"/>
+      <child link="mounting_pad"/>
+      <origin xyz="0 0 0.107" rpy="0 0 1.57079632679"/>
+    </joint>
+  </xacro:unless>
+  
+  <!-- material definitions -->
+  <material name="panda_white">
+    <color rgba="1. 1. 1. 1."/>
+  </material>
+  <material name="panda_gray">
+    <color rgba="0.8 0.8 0.8 1."/>
+  </material>
+  <material name="pad_blue">
+    <color rgba="0.68 0.85 0.9 0.7"/>
+  </material>
+  <material name="mounting_pad_gray">
+    <color rgba="0.6 0.6 0.6 1."/>
+  </material>
+  <material name="ati_net_gamma_gray">
+    <color rgba="0.4 0.4 0.4 1."/>
+  </material>
+</robot>
