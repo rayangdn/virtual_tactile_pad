@@ -1,2 +1,0 @@
-virtual_tactile_pad
--DCATKIN_DEVEL_PREFIX=/home/rayann/Desktop/virtual_tactile_pad/ros_ws/devel -DCMAKE_INSTALL_PREFIX=/home/rayann/Desktop/virtual_tactile_pad/ros_ws/install -G Unix Makefiles

@@ -1,8 +1,0 @@
-prefix=/home/rayann/Desktop/virtual_tactile_pad/ros_ws/devel
-
-Name: virtual_tactile_pad
-Description: Description of virtual_tactile_pad
-Version: 0.0.0
-Cflags: -I/home/rayann/Desktop/virtual_tactile_pad/ros_ws/devel/include
-Libs: -L${prefix}/lib 
-Requires: rospy geometry_msgs visualization_msgs message_runtime
