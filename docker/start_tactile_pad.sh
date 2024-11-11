@@ -74,10 +74,13 @@ if [ "${MODE}" != "connect" ]; then
     FWD_ARGS+=(-e DISPLAY="${DISPLAY}")
     FWD_ARGS+=(-v /tmp/.X11-unix:/tmp/.X11-unix:rw)
     
-    # Add required groups for graphics
+    # Add environment variables for graphics
+    FWD_ARGS+=(-e XDG_RUNTIME_DIR="/tmp/runtime-ros")
+    FWD_ARGS+=(-e LIBGL_ALWAYS_SOFTWARE=1)
+    
+    # Add video group
     FWD_ARGS+=(--group-add video)
-    FWD_ARGS+=(--group-add render)
-	
+    
     # network for ros
     FWD_ARGS+=(--net host)
     FWD_ARGS+=(--env ROS_HOSTNAME="$(hostname)")
@@ -98,6 +101,11 @@ if [ "${MODE}" != "connect" ]; then
     "virtual_tactile_pad"
 
     FWD_ARGS+=(--volume="virtual_tactile_pad:/home/ros/ros_ws/src:rw")
+    
+    # Create runtime directory with proper permissions
+    mkdir -p /tmp/runtime-ros
+    chmod 0700 /tmp/runtime-ros
+    chown ${USER}:${USER} /tmp/runtime-ros
 fi
 
 # Trick aica-docker into making a server on a host network container
@@ -110,6 +118,9 @@ if [ "${MODE}" == "" ]; then
     MODE=interactive
 fi
 
+# Enable X11 forwarding from docker
+xhost +local:docker
+
 # Start docker using aica
 aica-docker \
     "${MODE}" \
@@ -118,3 +129,6 @@ aica-docker \
     -n "${CONTAINER_NAME}" \
     ${GPU_FLAG} \
     "${FWD_ARGS[@]}"
+
+# Ensure runtime directory exists in container
+docker exec ${CONTAINER_NAME} bash -c 'mkdir -p /tmp/runtime-ros && chmod 0700 /tmp/runtime-ros && chown ${USER}:${USER} /tmp/runtime-ros' || true

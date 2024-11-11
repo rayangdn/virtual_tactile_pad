@@ -56,7 +56,6 @@ class DigitRecognizer:
         # Load the model
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.model = Net()
-        # Load the state dict with explicit CPU mapping for LASA computer
         self.model.load_state_dict(torch.load(model_path, map_location=torch.device('cpu')))
         self.model.to(self.device)  # This line is still fine as device will be 'cpu'
         self.model.eval()

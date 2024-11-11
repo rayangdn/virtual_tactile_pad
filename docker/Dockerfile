@@ -3,6 +3,15 @@ ARG ROS_DISTRO=noetic
 
 FROM ghcr.io/aica-technology/ros-ws:${ROS_DISTRO}
 
+# Avoid interactive prompts during package installation
+ENV DEBIAN_FRONTEND=noninteractive
+ENV DEBCONF_NONINTERACTIVE_SEEN=true
+
+# Pre-configure keyboard settings
+RUN echo "keyboard-configuration keyboard-configuration/layout select Switzerland" | sudo debconf-set-selections && \
+    echo "keyboard-configuration keyboard-configuration/variant select Swiss French" | sudo debconf-set-selections && \
+    echo "keyboard-configuration keyboard-configuration/model select pc105" | sudo debconf-set-selections
+
 # User provided arguments
 ARG HOST_GID=1000
 ARG GIT_NAME=""
@@ -28,7 +37,7 @@ RUN git config --global user.email "${GIT_EMAIL}"
 
 # Setup python version for noetic
 RUN sudo apt update
-RUN sudo apt install python-is-python3
+RUN sudo apt install -y python-is-python3
 
 ### Add a few tools
 RUN sudo apt-get update && sudo apt-get install -y \
@@ -40,6 +49,11 @@ RUN sudo apt-get update && sudo apt-get install -y \
     netbase \
     ros-noetic-vrpn-client-ros \
     ros-${ROS_DISTRO}-joint-state-publisher-gui \
+    mesa-utils \
+    libgl1-mesa-dri \
+    libgl1-mesa-glx \
+    mesa-vulkan-drivers \
+    xserver-xorg-video-amdgpu \
     && sudo apt-get upgrade -y && sudo apt-get clean
 
 # Install PyTorch and other Python dependencies
@@ -91,3 +105,15 @@ RUN echo "source /opt/ros/noetic/setup.bash && \
 
 ### Final apt clean
 RUN sudo apt update && sudo apt upgrade -y && sudo apt clean
+
+# Create and set permissions for runtime directory
+RUN sudo mkdir -p /tmp/runtime-ros && \
+    sudo chmod 0700 /tmp/runtime-ros && \
+    sudo chown ${USER}:${USER} /tmp/runtime-ros
+
+# Set environment variables for graphics
+ENV XDG_RUNTIME_DIR="/tmp/runtime-ros"
+ENV LIBGL_ALWAYS_SOFTWARE=1
+
+# Keep the DEBIAN_FRONTEND environment variable set to noninteractive
+ENV DEBIAN_FRONTEND=noninteractive
