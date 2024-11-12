@@ -4,7 +4,7 @@
 use_ft_sensor: true
 
 # Simulation Configuration
-use_simulation: true
+use_simulation: false
 
 # Optitrack Configuration
 use_optitrack: true
@@ -52,7 +52,7 @@ calibration:
     - dynamic
   # Static calibration parameters
   static:
-    num_samples: 10
+    num_samples: 100
 
 # Processing Configuration
 processing:

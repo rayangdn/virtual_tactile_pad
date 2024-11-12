@@ -52,10 +52,16 @@ class ContactVisualizer:
         Args:
             msg (ContactForce): Message containing contact position and force information
         """
-          # Skip visualization if position is at origin
+       # Skip visualization if position is at origin
         if msg.position.x == 0 and msg.position.y == 0:
             # Publish empty marker array to clear previous markers
-            self.marker_pub.publish(MarkerArray())
+             # Create a marker array with a deletion marker
+            marker_array = MarkerArray()
+            delete_marker = Marker()
+            delete_marker.action = Marker.DELETEALL  # This will clear all markers
+            delete_marker.ns = "your_namespace"  # Use the same namespace as your arrows
+            marker_array.markers.append(delete_marker)
+            self.marker_pub.publish(marker_array)
             return
         marker_array = MarkerArray()
         marker_array.markers.append(self.create_contact_point_marker(msg))
@@ -167,8 +173,8 @@ class ContactVisualizer:
         # Transform force vector to RViz coordinate system
         force_vector = np.array([
             msg.force.x,
-            -msg.force.z,  # Transform to RViz coordinate system
-            -msg.force.y   # Transform to RViz coordinate system
+            msg.force.z,  # Transform to RViz coordinate system
+            msg.force.y   # Transform to RViz coordinate system
         ])
         
         # Calculate force magnitude and direction

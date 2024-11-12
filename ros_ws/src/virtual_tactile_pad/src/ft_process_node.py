@@ -174,7 +174,7 @@ class FTSensorWrapper:
         self.static_calibration_count += 1
 
         if self.static_calibration_count >= self.STATIC_CALIBRATION_SAMPLES:
-            self.calibration_offset = np.mean(self.static_calibration_array, axis=0)
+            self.static_calibration_offset = np.mean(self.static_calibration_array, axis=0)
             self.static_calibration_complete = True
             rospy.loginfo(f"Static calibration complete. Offset: {self.static_calibration_offset}")
 

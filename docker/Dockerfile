@@ -1,6 +1,5 @@
 # Handle ros distro
 ARG ROS_DISTRO=noetic
-
 FROM ghcr.io/aica-technology/ros-ws:${ROS_DISTRO}
 
 # Avoid interactive prompts during package installation
@@ -54,13 +53,20 @@ RUN sudo apt-get update && sudo apt-get install -y \
     libgl1-mesa-glx \
     mesa-vulkan-drivers \
     xserver-xorg-video-amdgpu \
+    python3-matplotlib \
+    python3-numpy \
+    python3-pandas \
+    python3-tk \
     && sudo apt-get upgrade -y && sudo apt-get clean
 
 # Install PyTorch and other Python dependencies
 RUN pip3 install --no-cache-dir \
     torch \
     torchvision \
-    torchaudio
+    torchaudio \
+    matplotlib \
+    numpy \
+    pandas
 
 # Handle SIMD option
 RUN if [ "${USE_SIMD}" = "ON" ] ; \ 
@@ -69,15 +75,12 @@ RUN if [ "${USE_SIMD}" = "ON" ] ; \
 # Install Virtual Tactile Pad
 WORKDIR /home/${USER}
 RUN git clone --depth 1 https://github.com/rayangdn/virtual_tactile_pad.git
-
 RUN cp -R virtual_tactile_pad/ros_ws/src ros_ws/
-
 #Cleaning the workspace
 RUN rm -r /home/${USER}/virtual_tactile_pad
 
 ### Add environement variables to bashrc
 WORKDIR /home/${USER}
-
 # Give bashrc back to user
 RUN sudo chown -R ${USER}:${HOST_GID} .bashrc
 

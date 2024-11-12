@@ -77,7 +77,7 @@ def plot_data(csv_path):
         # Add labels and grid
         plt.xlabel('X Position')
         plt.ylabel('Y Position')
-        plt.title('Trajectory')
+        plt.title('Trajectory', fontsize=20)
         plt.grid(False)
         plt.axis('equal')
         plt.legend()
@@ -85,7 +85,7 @@ def plot_data(csv_path):
         plt.subplot(1, 3, 2)
         # Plot grid
         plt.imshow(grid, cmap='gray')
-        plt.title('Grid')
+        plt.title('Grid', fontsize=20)
         plt.axis('on')
         plt.grid(True, alpha=0.3)
 
@@ -95,10 +95,12 @@ def plot_data(csv_path):
             f'Predicted Digit: {prediction}',
             f'Confidence: {confidence:.2%}',
         ]    
-        plt.text(0.1, 0.6, '\n'.join(prediction_text), fontsize=12)
+        plt.text(0.1, 0.6, '\n'.join(prediction_text), fontsize=20)
         plt.axis('off')
-        plt.title('Recognition Results')
- 
+        plt.title('Recognition Results', fontsize=20)
+
+        #plt.savefig(f'img/digit_predicted_{prediction}.png', bbox_inches='tight', dpi=300)
+        
         # Update display
         plt.draw()
         plt.pause(0.01)
