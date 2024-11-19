@@ -5,3 +5,6 @@
 	path = lib/panda_controllers_adapted
 	url = https://github.com/epfl-lasa/panda_controllers_adapted.git
 
+[submodule "ros_ws/src/net-ft-ros"]
+	path = ros_ws/src/net-ft-ros
+	url = https://github.com/epfl-lasa/net-ft-ros.git
