@@ -26,9 +26,7 @@ class DataSaver:
         self.data_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data', 'raw')
         os.makedirs(self.data_dir, exist_ok=True)
         
-        # Create filename with simulation suffix if needed
-        sim_suffix = '_simulated' if self.config['use_simulation'] else ''
-        self.filename = os.path.join(self.data_dir, f'ft_optitrack_data{sim_suffix}.csv')
+        self.filename = os.path.join(self.data_dir, f'ft_optitrack_data.csv')
         
         # Initialize the CSV file with headers
         with open(self.filename, 'w', newline='') as csvfile:
@@ -63,7 +61,7 @@ class DataSaver:
         # Set up timer for periodic data writing
         rospy.Timer(rospy.Duration(self.write_interval), self.write_data)
         
-        rospy.loginfo(f"Saving {'simulated' if self.config['use_simulation'] else 'real'} data to:")
+        rospy.loginfo(f"Saving  data to:")
         rospy.loginfo(f"Combined data: {self.filename}")
 
     def ft_data_callback(self, msg):
