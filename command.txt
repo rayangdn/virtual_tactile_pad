@@ -1,0 +1,29 @@
+Need to be on same sub-network.
+
+To compile changes:
+-catkin_make
+
+To source:
+- source devel/setup.bash
+- source /opt/ros/noetic/setup.bash
+
+To launch F/T sensor:
+-roslaunch netft_rdt_driver ft_sensor.launch
+
+To use rqt_plot:
+-rosrun rqt_plot rqt_plot
+
+To see topic:
+-rostopic echo /ft_sensor/netft_data
+
+Docker commands:
+- docker images: list docker images
+- docker rmi <image>: remove a docker image
+- docker ps -a: list running (and stopped) containers
+- docker run -it <container>: create and start a new container (in terminal) from an image
+- docker start <container>: start a stopped container 
+- docker restart <container>: Restart a container
+- docker rm <container>: Remove a stopped container
+- aica-docker connect <container>: run simultaneoulsy in container
+in docker:
+-exit or Ctrl+P, Ctrl+Q

@@ -4,7 +4,7 @@
 use_ft_sensor: true
 
 # Simulation Configuration
-use_simulation: true
+use_simulation: false
 
 # Optitrack Configuration
 use_optitrack: true
