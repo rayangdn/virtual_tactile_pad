@@ -38,11 +38,11 @@ class FTSensorSimulator:
         if self.t <= 1.0:
             force = np.array([0, 0, 0])
         elif self.t <= 10.0:
-            force = np.array([-3.0, 0.0, 3.0])
+            force = np.array([-3.0, 0.0, -3.0])
         elif self.t <= 12.0:
             force = np.array([0, 0, 0])
         elif self.t <= 21.0:
-            force = np.array([0, 0, 5.0])
+            force = np.array([0, 0, -5.0])
         else:
             force = np.array([0, 0, 0])
         
@@ -62,7 +62,7 @@ class FTSensorSimulator:
         # Add noise proportional to measurement magnitude
         noise = np.random.normal(0, self.NOISE, 6)
         measurement = measurement + noise * abs(measurement)
-        self.t += 0.05
+        self.t += 0.1
         return measurement
 
 class FTSensorWrapper:
