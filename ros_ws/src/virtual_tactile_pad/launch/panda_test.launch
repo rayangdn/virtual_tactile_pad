@@ -1,0 +1,12 @@
+<launch>
+    <!-- Launch the Franka state subscriber node -->
+    <node name="franka_state_subscriber" 
+          pkg="virtual_tactile_pad" 
+          type="panda_process_node.py" 
+          output="screen">
+    </node>
+
+    <!-- Optional: Include the Franka control launch file if you need the driver -->
+    <!-- Uncomment the following line if you need to launch the Franka driver as well -->
+    <!-- <include file="$(find franka_control)/launch/franka_control.launch" /> -->
+</launch>

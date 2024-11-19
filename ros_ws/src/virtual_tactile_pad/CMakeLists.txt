@@ -5,6 +5,7 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   geometry_msgs
   visualization_msgs
+  franka_msgs
   message_generation
 )
 
@@ -19,10 +20,11 @@ generate_messages(
   DEPENDENCIES
   geometry_msgs
   visualization_msgs
+  franka_msgs
 )
 
 catkin_package(
-  CATKIN_DEPENDS rospy geometry_msgs visualization_msgs message_runtime
+  CATKIN_DEPENDS rospy geometry_msgs visualization_msgs franka_msgs message_runtime
 )
 
 include_directories(
@@ -30,6 +32,7 @@ include_directories(
 )
 
 catkin_install_python(PROGRAMS
+  src/panda_process_node.py
   src/ft_process_node.py
   src/visualize_node.py
   src/data_saver_node.py
