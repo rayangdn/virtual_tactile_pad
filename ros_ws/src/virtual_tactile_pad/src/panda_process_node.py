@@ -45,27 +45,21 @@ class PandaWrapper:
             FrankaState,
             self.callback
         )
-        
+        self.timer =0
         rospy.loginfo("Panda wrapper initialized")
 
     def callback(self, msg):
-        measurement = np.array([
-            msg.tau_ext_hat_filtered, # External torque (7x1)
-            msg.tau_J, # Joint torque (7x1)
-            msg.q, # Joint position (7x1)
-            msg.dq # Joint velocity (7x1)
-        ])
-        
-        # Example: Print some information
-        #rospy.loginfo(f"Received measurement: {measurement}")
+
+        tau_ext = np.array(msg.tau_ext_hat_filtered)# External torque (7x1)
+        q =  np.array(msg.q) # Joint position (7x1)
         
         # Process measurement based on calibration type
         if self.CALIBRATION_TYPE == 'static':
             if not self.static_calibration_complete:
-                self.static_calibrate(measurement[0])
+                self.static_calibrate(tau_ext)
             else:
-                measurement[0] -= self.static_calibration_offset
-                self.process_data(measurement)
+                tau_ext -= self.static_calibration_offset
+                self.process_data(tau_ext, q)
         else:
             self.dynamic_calibrate(measurement)
             self.process_data(measurement)
@@ -79,12 +73,89 @@ class PandaWrapper:
             self.static_calibration_complete = True
             rospy.loginfo(f"Static calibration complete, Offset: {self.static_calibration_offset}")
             
-    def process_data(self, measurement): 
-        
-        pass
+    def process_data(self, tau_ext, q): 
+        J = self.calculate_jacobian(q)
+        wrench = self.estimate_external_wrench(J, tau_ext)
+        self.timer+=1
+        if (self.timer >= 500):
+            print(wrench)
+            self.timer=0
+
     def dynamic_calibrate(self, measurement):
         rospy.logwarn("Dynamic calibration not yet implemented")
     
+    def get_panda_dh_params(self):
+        return np.array([
+            [0,      0,      0.333,  0],
+            [0,      -np.pi/2, 0,      0],
+            [0,      np.pi/2,  0.316,  0],
+            [0.0825, np.pi/2,  0,      0],
+            [-0.0825, -np.pi/2, 0.384,  0],
+            [0,      np.pi/2,  0,      0],
+            [0.088,  np.pi/2,  0,      0]
+        ])
+    
+    def transform_matrix(self, a, alpha, d, theta):
+        return np.array([
+            [np.cos(theta), -np.sin(theta)*np.cos(alpha),  np.sin(theta)*np.sin(alpha), a*np.cos(theta)],
+            [np.sin(theta),  np.cos(theta)*np.cos(alpha), -np.cos(theta)*np.sin(alpha), a*np.sin(theta)],
+            [0,          np.sin(alpha),             np.cos(alpha),            d],
+            [0,          0,                      0,                     1]
+        ])
+
+    def calculate_jacobian(self, q):
+        dh = self.get_panda_dh_params()
+        
+        # Initialize transformation matrices
+        T = np.eye(4)
+        z_axes = []
+        positions = []
+        
+        # Calculate forward kinematics for each joint
+        for i in range(7):
+            # Update DH parameters with current joint angle
+            current_dh = dh[i].copy()
+            current_dh[3] = q[i]
+            
+            # Calculate transformation matrix
+            Ti = self.transform_matrix(*current_dh)
+            T = T @ Ti
+            
+            # Store z-axis and position for Jacobian calculation
+            z_axes.append(T[:3, 2])
+            positions.append(T[:3, 3])
+        
+        # End effector position
+        p_ee = positions[-1]
+        
+        # Initialize Jacobian matrix
+        J = np.zeros((6, 7))
+        
+        # Calculate Jacobian columns
+        for i in range(7):
+            if i == 0:
+                p_i = np.zeros(3)
+            else:
+                p_i = positions[i-1]
+                
+            # Linear velocity component
+            J[:3, i] = np.cross(z_axes[i], (p_ee - p_i))
+            
+            # Angular velocity component
+            J[3:, i] = z_axes[i]
+        
+        return J
+
+    def estimate_external_wrench(self, J, residuals):
+
+        # Calculate pseudoinverse of Jacobian transpose
+        J_pinv = np.linalg.pinv(J.T)
+        
+        # Project residuals to get wrench (force/moment)
+        wrench = J_pinv @ residuals
+                    
+        return wrench
+
 if __name__ == '__main__':
     try:
         panda_sensor = PandaWrapper()
