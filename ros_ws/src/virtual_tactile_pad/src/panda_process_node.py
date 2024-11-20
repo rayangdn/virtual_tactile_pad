@@ -50,38 +50,38 @@ class PandaWrapper:
 
     def callback(self, msg):
         measurement = np.array([
-            msg.tau_ext_hat_filtered, # External torque (6x1)
+            msg.tau_ext_hat_filtered, # External torque (7x1)
             msg.tau_J, # Joint torque (7x1)
             msg.q, # Joint position (7x1)
             msg.dq # Joint velocity (7x1)
         ])
         
         # Example: Print some information
-        rospy.loginfo(f"Received measurement: {measurement}")
+        #rospy.loginfo(f"Received measurement: {measurement}")
         
         # Process measurement based on calibration type
         if self.CALIBRATION_TYPE == 'static':
             if not self.static_calibration_complete:
-                self.static_calibrate(measurement)
+                self.static_calibrate(measurement[0])
             else:
-                measurement[:6] -= self.static_calibration_offset
+                measurement[0] -= self.static_calibration_offset
                 self.process_data(measurement)
         else:
             self.dynamic_calibrate(measurement)
             self.process_data(measurement)
             
-    def static_calibrate(self, measurement):
-        self.static_calibration_array.append(measurement[:6])
+    def static_calibrate(self, params):
+        self.static_calibration_array.append(params)
         self.static_calibration_count += 1
         
         if self.static_calibration_count >= self.STATIC_CALIBRATION_SAMPLES:
             self.static_calibration_offset = np.mean(self.static_calibration_array, axis=0)
             self.static_calibration_complete = True
-            rospy.loginfo("Static calibration complete")
+            rospy.loginfo(f"Static calibration complete, Offset: {self.static_calibration_offset}")
             
     def process_data(self, measurement): 
-        rospy.logwarn("Dynamic calibration not yet implemented")
-    
+        
+        pass
     def dynamic_calibrate(self, measurement):
         rospy.logwarn("Dynamic calibration not yet implemented")
     
@@ -92,4 +92,4 @@ if __name__ == '__main__':
     except KeyboardInterrupt:
         print("Shutting down...")
     finally:
-        rospy.single_shutdown("User interrupted")
+        rospy.signal_shutdown("User interrupted")
