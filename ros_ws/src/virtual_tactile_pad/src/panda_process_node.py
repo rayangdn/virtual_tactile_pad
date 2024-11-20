@@ -85,7 +85,8 @@ class PandaWrapper:
         contact_pos = self.estimate_contact_point(wrench)
         force = wrench[:3]
         if (self.timer >= 500):
-            print(wrench)
+            print(f"q: {q}")
+            print(f"tau_ext:{tau_ext}")
             self.timer=0
         # Create and publish ContactForce message
         msg = ContactForce()
