@@ -30,6 +30,13 @@ rviz:
     y: 0.147
     z: 0.009
 
+# Panda config
+panda:
+# Default panda position relative to origin of the pad (front left)
+  position:
+    x: 0.0
+    y: 0.0 
+    z: 0.0
 # ATI Gamma FT Sensor Configuration
 sensor:
   # Default sensor position relative to origin of the pad (front left)

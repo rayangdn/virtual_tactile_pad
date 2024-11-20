@@ -16,11 +16,15 @@ class PandaWrapper:
     
     VALID_CALIBRATION_TYPES = config['calibration']['types']
     
-    def __init__(self):
+    def __init__(self, panda_pos=np.array([config['panda']['position']['x'],
+                                           config['panda']['position']['y'],
+                                           config['panda']['position']['z']], dtype=float)):
         
         # Initialize ROS node
         rospy.init_node('panda_process', anonymous=True)
-        
+
+        # Initialize panda position relative to origin of the pad (front left)
+        self.PANDA_POS = panda_pos
         # Get and validate calibration type from config file
         self.CALIBRATION_TYPE = config['calibration']['use_calibration']
         if self.CALIBRATION_TYPE not in self.VALID_CALIBRATION_TYPES:
@@ -74,12 +78,27 @@ class PandaWrapper:
             rospy.loginfo(f"Static calibration complete, Offset: {self.static_calibration_offset}")
             
     def process_data(self, tau_ext, q): 
-        J = self.calculate_jacobian(q)
+        J = self.calculate_ee_jacobian(q)
         wrench = self.estimate_external_wrench(J, tau_ext)
         self.timer+=1
+
+        contact_pos = self.estimate_contact_point(wrench)
+        force = wrench[:3]
         if (self.timer >= 500):
             print(wrench)
             self.timer=0
+        # Create and publish ContactForce message
+        msg = ContactForce()
+        msg.header.stamp = rospy.Time.now()
+        msg.header.frame_id = "pad"
+        msg.position.x = contact_pos[0] 
+        msg.position.y = contact_pos[1]
+        msg.position.z = 0.0  # Assume contact point is on the pad
+        msg.force.x = force[0]
+        msg.force.y = force[1]
+        msg.force.z = force[2]
+        #self.contact_force_pub.publish(msg)
+        
 
     def dynamic_calibrate(self, measurement):
         rospy.logwarn("Dynamic calibration not yet implemented")
@@ -103,48 +122,44 @@ class PandaWrapper:
             [0,          0,                      0,                     1]
         ])
 
-    def calculate_jacobian(self, q):
+    def calculate_ee_jacobian(self, q):
         dh = self.get_panda_dh_params()
-        
-        # Initialize transformation matrices
+    
+        # Initialize
         T = np.eye(4)
         z_axes = []
         positions = []
         
-        # Calculate forward kinematics for each joint
+        # Forward kinematics
         for i in range(7):
-            # Update DH parameters with current joint angle
             current_dh = dh[i].copy()
             current_dh[3] = q[i]
-            
-            # Calculate transformation matrix
             Ti = self.transform_matrix(*current_dh)
             T = T @ Ti
-            
-            # Store z-axis and position for Jacobian calculation
             z_axes.append(T[:3, 2])
             positions.append(T[:3, 3])
         
-        # End effector position
+        # End effector position and rotation
+        R_ee = T[:3, :3]  # End-effector rotation matrix
         p_ee = positions[-1]
         
-        # Initialize Jacobian matrix
+        # Initialize Jacobian
         J = np.zeros((6, 7))
         
-        # Calculate Jacobian columns
+        # Calculate Jacobian columns in base frame
         for i in range(7):
-            if i == 0:
-                p_i = np.zeros(3)
-            else:
-                p_i = positions[i-1]
-                
-            # Linear velocity component
+            p_i = np.zeros(3) if i == 0 else positions[i-1]
             J[:3, i] = np.cross(z_axes[i], (p_ee - p_i))
-            
-            # Angular velocity component
             J[3:, i] = z_axes[i]
         
-        return J
+        # Transform to end-effector frame
+        R_block = np.block([
+            [R_ee.T, np.zeros((3,3))],
+            [np.zeros((3,3)), R_ee.T]
+        ])
+        J_ee = R_block @ J
+        
+        return J_ee
 
     def estimate_external_wrench(self, J, residuals):
 
@@ -155,6 +170,32 @@ class PandaWrapper:
         wrench = J_pinv @ residuals
                     
         return wrench
+
+    def estimate_contact_point(self, measurement):
+        force = measurement[:3]
+        moment = measurement[3:]
+
+        # Check if force is below threshold
+        if np.sqrt(force[0]**2 + force[1]**2 + force[2]**2) < config['processing']['force_threshold']:
+            return np.array([0.0, 0.0, 0.0])
+
+        # Calculate skew-symmetric matrix from force vector
+        S_f_ext = np.array([
+            [0, -force[2], force[1]],
+            [force[2], 0, -force[0]],
+            [-force[1], force[0], 0]
+        ])
+
+        # Set up and solve system of equations for contact point
+        C = np.array([[0, 0, 1]])
+        A = np.vstack([-S_f_ext, C])
+        b = np.concatenate([moment, [-self.PANDA_POS[2]]])
+
+        p_c_d = np.linalg.lstsq(A, b, rcond=None)[0]
+        estimated_point = p_c_d + self.PANDA_POS # Add sensor position to get contact point in pad frame
+        estimated_point[0] = config['pad']['dimensions']['x'] - estimated_point[0] # Convert to pad frame
+            
+        return estimated_point
 
 if __name__ == '__main__':
     try:
