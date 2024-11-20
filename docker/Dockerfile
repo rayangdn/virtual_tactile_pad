@@ -71,7 +71,11 @@ RUN pip3 install --no-cache-dir \
     torchaudio \
     matplotlib \
     numpy \
-    pandas
+    pandas \
+    scipy \
+    seaborn \
+    scikit-learn \
+    pathlib
 
 # Handle SIMD option
 RUN if [ "${USE_SIMD}" = "ON" ] ; \ 

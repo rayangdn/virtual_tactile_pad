@@ -12,28 +12,12 @@ with open(config_path, 'r') as f:
     config = yaml.safe_load(f)
 
 class FTSensorSimulator:
-    """
-    Simulates a Force/Torque sensor for testing purposes.
-    Generates synthetic force and torque measurements with noise.
-    """
     def __init__(self, position):
-        """
-        Initialize the FT sensor simulator.
-        
-        Args:
-            position (np.array): 3D position vector of the sensor
-        """
         self.t = 0  # Time variable for simulation
         self.NOISE = config['sensor']['simulation']['noise_magnitude']  # Magnitude of noise to add to measurements
         self.position = position
 
     def generate_data(self):
-        """
-        Generate simulated force/torque measurements.
-        
-        Returns:
-            np.array: 6D vector containing [force_x, force_y, force_z, torque_x, torque_y, torque_z]
-        """
         # Generate force based on simulation time
         if self.t <= 1.0:
             force = np.array([0, 0, 0])
@@ -66,23 +50,12 @@ class FTSensorSimulator:
         return measurement
 
 class FTSensorWrapper:
-    """
-    Wrapper class for Force/Torque sensor handling both real and simulated data.
-    Implements different calibration strategies and data processing.
-    """
+    
     VALID_CALIBRATION_TYPES = config['calibration']['types']
     
-    def __init__(self, sensor_pos=np.array([
-        config['sensor']['position']['x'],
-        config['sensor']['position']['y'],
-        config['sensor']['position']['z']
-    ], dtype=float)):
-        """
-        Initialize the FT sensor wrapper.
-        
-        Args:
-            sensor_pos (np.array): 3D position vector of the sensor
-        """
+    def __init__(self, sensor_pos=np.array([config['sensor']['position']['x'],
+                                            config['sensor']['position']['y'],
+                                            config['sensor']['position']['z']], dtype=float)):
         # Initialize ROS node
         rospy.init_node('ft_process', anonymous=True)
 
@@ -97,7 +70,7 @@ class FTSensorWrapper:
         else:
             rospy.loginfo("Mode: Real Sensor")
 
-        # Get and validate calibration type from ft config file
+        # Get and validate calibration type from config file
         self.CALIBRATION_TYPE = config['calibration']['use_calibration']
         if self.CALIBRATION_TYPE not in self.VALID_CALIBRATION_TYPES:
             rospy.logerr(f"Invalid calibration type: {self.CALIBRATION_TYPE}. Using default 'static'")
@@ -116,7 +89,6 @@ class FTSensorWrapper:
         self.contact_force_pub = rospy.Publisher('/ft_process_node/contact_force', ContactForce, queue_size=10)
 
     def start(self):
-        """Start the sensor data processing based on simulator mode"""
         if self.USE_SIMULATOR:
             rospy.Timer(rospy.Duration(0.1), self.simulated_callback)
             rospy.loginfo("FT sensor simulator started")
@@ -125,13 +97,6 @@ class FTSensorWrapper:
             rospy.loginfo("FT sensor wrapper started")
 
     def callback(self, data):
-        """
-        Callback function for processing real sensor data.
-        
-        Args:
-            data (WrenchStamped): Force/torque measurements from the real sensor
-        """
-        # Convert ROS message to numpy array
         measurement = np.array([
             data.wrench.force.x,
             data.wrench.force.z, # Swap y and z axes
@@ -152,7 +117,6 @@ class FTSensorWrapper:
             self.process_data(measurement)
 
     def simulated_callback(self, event):
-        """Callback function for processing simulated sensor data"""
         measurement = self.simulator.generate_data()
         if self.CALIBRATION_TYPE == 'static':
             if not self.static_calibration_complete:
@@ -164,12 +128,6 @@ class FTSensorWrapper:
             self.process_data(measurement)
 
     def static_calibrate(self, measurement):
-        """
-        Perform static calibration by averaging multiple measurements.
-        
-        Args:
-            measurement (np.array): Current force/torque measurement
-        """
         self.static_calibration_array.append(measurement)
         self.static_calibration_count += 1
 
@@ -179,21 +137,9 @@ class FTSensorWrapper:
             rospy.loginfo(f"Static calibration complete. Offset: {self.static_calibration_offset}")
 
     def dynamic_calibrate(self, measurement):
-        """
-        Placeholder for dynamic calibration implementation.
-        
-        Args:
-            measurement (np.array): Current force/torque measurement
-        """
         rospy.logwarn("Dynamic calibration not yet implemented")
         
     def process_data(self, measurement):
-        """
-        Process calibrated measurements and publish results.
-        
-        Args:
-            measurement (np.array): Calibrated force/torque measurement
-        """
         # Calculate contact point from force/torque measurements
         contact_pos = self.estimate_contact_point(measurement)
         force = measurement[:3]
@@ -211,18 +157,10 @@ class FTSensorWrapper:
         self.contact_force_pub.publish(msg)
 
     def estimate_contact_point(self, measurement):
-        """
-        Estimate the point of contact from force/torque measurements.
-        
-        Args:
-            measurement (np.array): Force/torque measurement vector
-        
-        Returns:
-            np.array: Estimated contact point in 3D space
-        """
         force = measurement[:3]
         moment = measurement[3:]
 
+        # Check if force is below threshold
         if np.sqrt(force[0]**2 + force[1]**2 + force[2]**2) < config['processing']['force_threshold']:
             return np.array([0.0, 0.0, 0.0])
 
