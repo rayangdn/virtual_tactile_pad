@@ -81,49 +81,41 @@ RUN pip3 install --no-cache-dir \
 RUN if [ "${USE_SIMD}" = "ON" ] ; \ 
     then export CMAKE_CXX_FLAGS="-march=native -faligned-new" ; fi
 
-# Install Franka ROS dependencies
-RUN sudo apt-get update && sudo apt-get install -y \
-    ros-${ROS_DISTRO}-libfranka \
-    ros-${ROS_DISTRO}-franka-ros \
-    ros-${ROS_DISTRO}-franka-msgs \
-    ros-${ROS_DISTRO}-franka-gripper \
-    ros-${ROS_DISTRO}-franka-visualization \
-    ros-${ROS_DISTRO}-franka-hw \
-    ros-${ROS_DISTRO}-franka-example-controllers \
-    ros-${ROS_DISTRO}-franka-description \
-    liburdfdom-dev \
-    libeigen3-dev \
-    libboost-all-dev \
-    liboctomap-dev \
-    libassimp-dev \
-    libccd-dev \
-    libfcl-dev \
-    ros-${ROS_DISTRO}-eigenpy \
-    ros-${ROS_DISTRO}-pinocchio \
-    && sudo apt-get clean
+WORKDIR /home/${USER}/ros_ws/src
 
-# Build and install libfranka
-WORKDIR /home/${USER}
-RUN git clone --recursive https://github.com/frankaemika/libfranka \
-    && cd libfranka \
-    && mkdir build \
-    && cd build \
-    && cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF -DBUILD_EXAMPLES=OFF .. \
-    && cmake --build . -j$(nproc) \
-    && sudo make install \
-    && sudo ldconfig
+    # Install libfranka
+    RUN git clone --recursive https://github.com/frankaemika/libfranka && \
+    cd libfranka && \
+    git checkout 0.8.0 && \
+    git submodule update && \
+    mkdir build && \
+    cd build && \
+    cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF .. && \
+    cmake --build . && \
+    sudo make install -j && \
+    sudo ldconfig && \
+    cd /home/${USER}/ros_ws/src && \
+    ls -la  # Debug: List contents after libfranka installation
 
-# Install Virtual Tactile Pad
-WORKDIR /home/${USER}
-RUN git clone --depth 1 https://github.com/rayangdn/virtual_tactile_pad.git && \
-    cp -R virtual_tactile_pad/ros_ws/src ros_ws/ && \
-    rm -r /home/${USER}/virtual_tactile_pad
+    # Install franka_ros with verification
+    RUN git clone --recursive https://github.com/frankaemika/franka_ros --branch noetic-devel && \
+        cd franka_ros && \
+        git checkout 0.8.0 && \
+        git submodule update && \
+        cd .. && \
+        ls -la  # Debug: List contents after franka_ros installation
 
+    # Install Virtual Tactile Pad with verification
+    RUN git clone --depth 1 https://github.com/rayangdn/virtual_tactile_pad.git && \
+        cp -R virtual_tactile_pad/ros_ws/src/* . && \
+        rm -rf virtual_tactile_pad && \
+        ls -la  # Debug: List final contents
+        
 # Setup ROS workspace
 WORKDIR /home/${USER}/ros_ws
-RUN rosdep install --from-paths src --ignore-src --rosdistro noetic -y && \
+RUN rosdep install --from-paths src --ignore-src --rosdistro noetic -y --skip-keys libfranka && \
     source /opt/ros/$ROS_DISTRO/setup.bash && \
-    catkin_make -DCMAKE_BUILD_TYPE=Release
+    catkin_make -DCMAKE_BUILD_TYPE=Release -DFranka_DIR:PATH=/home/${USER}/ros_ws/src/libfranka/build
 
 # Configure environment
 WORKDIR /home/${USER}
