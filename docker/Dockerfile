@@ -81,6 +81,38 @@ RUN pip3 install --no-cache-dir \
 RUN if [ "${USE_SIMD}" = "ON" ] ; \ 
     then export CMAKE_CXX_FLAGS="-march=native -faligned-new" ; fi
 
+# Install Franka ROS dependencies
+RUN sudo apt-get update && sudo apt-get install -y \
+    ros-${ROS_DISTRO}-libfranka \
+    ros-${ROS_DISTRO}-franka-ros \
+    ros-${ROS_DISTRO}-franka-msgs \
+    ros-${ROS_DISTRO}-franka-gripper \
+    ros-${ROS_DISTRO}-franka-visualization \
+    ros-${ROS_DISTRO}-franka-hw \
+    ros-${ROS_DISTRO}-franka-example-controllers \
+    ros-${ROS_DISTRO}-franka-description \
+    liburdfdom-dev \
+    libeigen3-dev \
+    libboost-all-dev \
+    liboctomap-dev \
+    libassimp-dev \
+    libccd-dev \
+    libfcl-dev \
+    ros-${ROS_DISTRO}-eigenpy \
+    ros-${ROS_DISTRO}-pinocchio \
+    && sudo apt-get clean
+
+# Build and install libfranka
+WORKDIR /home/${USER}
+RUN git clone --recursive https://github.com/frankaemika/libfranka \
+    && cd libfranka \
+    && mkdir build \
+    && cd build \
+    && cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF -DBUILD_EXAMPLES=OFF .. \
+    && cmake --build . -j$(nproc) \
+    && sudo make install \
+    && sudo ldconfig
+
 # Install Virtual Tactile Pad
 WORKDIR /home/${USER}
 RUN git clone --depth 1 https://github.com/rayangdn/virtual_tactile_pad.git && \
