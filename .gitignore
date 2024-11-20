@@ -5,10 +5,20 @@ ros_ws/install/
 ros_ws/.catkin_workspace
 ros_ws/.catkin_tools/
 ros_ws/logs/
+lib/net_ft_ros_ws/build/
+lib/net_ft_ros_ws/devel/
+lib/net_ft_ros_ws/install/
+lib/net_ft_ros_ws/.catkin_workspace
+lib/net_ft_ros_ws/.catkin_tools
+lib/net_ft_ros_ws/logs/
 
 # Ignore everything in ros_ws except src
 ros_ws/*
 !ros_ws/src/
+
+# Ignore everything in lib/net_ft_ros_ws except src
+lib/net_ft_ros_ws/*
+!lib/net_ft_ros_ws/src
 
 # Common ROS and C++ ignores
 *.pyc
