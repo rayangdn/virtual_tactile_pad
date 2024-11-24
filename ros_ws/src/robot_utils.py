@@ -1,10 +1,6 @@
 import numpy as np
-from scipy.interpolate import CubicSpline
-from scipy import interpolate
-from scipy.spatial.transform import Rotation as R
 
 import pinocchio as pin
-import rospkg
 
 
 class RobotUtils():

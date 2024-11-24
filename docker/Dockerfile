@@ -44,6 +44,7 @@ RUN sudo apt-get update && sudo apt-get install -y \
     netbase \
     ros-noetic-vrpn-client-ros \
     ros-${ROS_DISTRO}-joint-state-publisher-gui \
+    ros-${ROS_DISTRO}-pinocchio \
     mesa-utils \
     libgl1-mesa-dri \
     libgl1-mesa-glx \
@@ -75,7 +76,8 @@ RUN pip3 install --no-cache-dir \
     scipy \
     seaborn \
     scikit-learn \
-    pathlib
+    pathlib \
+    pin
 
 # Handle SIMD option
 RUN if [ "${USE_SIMD}" = "ON" ] ; \ 

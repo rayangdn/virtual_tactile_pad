@@ -24,25 +24,18 @@ pad:
 
 # RViz Configuration
 rviz:
-  # Position of the pad in RViz
+  #Offset position of the pad in RViz
   position:
     x: -0.06
     y: 0.147
     z: 0.009
 
-# Panda config
-panda:
-# Default panda position relative to origin of the pad (front left)
-  position:
-    x: 0.0
-    y: 0.0 
-    z: 0.0
 # ATI Gamma FT Sensor Configuration
 sensor:
   # Default sensor position relative to origin of the pad (front left)
   position:
     x: 0.06
-    y: 0.142 
+    y: 0.142 # TRY 0.1616
     z: -0.008
   
   simulation:

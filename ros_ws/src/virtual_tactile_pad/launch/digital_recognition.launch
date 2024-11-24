@@ -22,4 +22,3 @@
   <node name="rviz" pkg="rviz" type="rviz" args="-d $(find virtual_tactile_pad)/rviz/ft_config.rviz" />
 
 </launch>
-

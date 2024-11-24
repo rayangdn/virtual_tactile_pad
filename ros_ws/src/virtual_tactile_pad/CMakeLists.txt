@@ -5,7 +5,7 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   geometry_msgs
   visualization_msgs
-  # franka_msgs
+  franka_msgs
   message_generation
 )
 
@@ -20,11 +20,11 @@ generate_messages(
   DEPENDENCIES
   geometry_msgs
   visualization_msgs
-  # franka_msgs
+  franka_msgs
 )
 
 catkin_package(
-  CATKIN_DEPENDS rospy geometry_msgs visualization_msgs  message_runtime # franka_msgs
+  CATKIN_DEPENDS rospy geometry_msgs visualization_msgs  franka_msgs message_runtime 
 )
 
 include_directories(
