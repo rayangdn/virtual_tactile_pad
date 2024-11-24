@@ -11,10 +11,11 @@ import torch.nn.functional as F
 from torchvision import transforms
 import rospkg
 
+# Load configuration file
 config_path = os.path.join(os.path.dirname(__file__), '../config/config.yaml')
 with open(config_path, 'r') as f:
     config = yaml.safe_load(f)
-
+            
 class Net(nn.Module):
     def __init__(self):
         super(Net, self).__init__()
@@ -41,12 +42,10 @@ class Net(nn.Module):
         return output
     
 class DigitRecognizer:
+    
     def __init__(self):
-        """
-        Initialize the digit recognizer node
-        """
         # Initialize ROS node
-        rospy.init_node('digit_recognizer', anonymous=True)
+        rospy.init_node('digits_recognizer', anonymous=True)
 
         # Get model path from ROS package
         rospack = rospkg.RosPack()
@@ -57,7 +56,7 @@ class DigitRecognizer:
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.model = Net()
         self.model.load_state_dict(torch.load(model_path, map_location=torch.device('cpu')))
-        self.model.to(self.device)  # This line is still fine as device will be 'cpu'
+        self.model.to(self.device)  
         self.model.eval()
 
         # Transform for MNIST format
@@ -68,7 +67,7 @@ class DigitRecognizer:
         
         # Configuration parameters
         self.FORCE_THRESHOLD = config['processing']['force_threshold'] # Threshold to start/end trajectory
-        self.TIME_WINDOW = config['processing']['time_window'] # Time window to start/end trajectory
+        self.TIME_WINDOW = config['digits_recognition']['time_window'] # Time window to start/end trajectory
         self.position_buffer = []    # Store trajectory positions
         self.timestamps = []        # Store timestamps
         
@@ -92,25 +91,12 @@ class DigitRecognizer:
         rospy.loginfo("Digit recognizer node started")
     
     def clear_trajectory_file(self):
-        """
-        Clear the CSV file and write headers with grid data
-        """
         os.makedirs(os.path.dirname(self.csv_path), exist_ok=True)
         with open(self.csv_path, 'w') as csvfile:
             writer = csv.writer(csvfile)
             writer.writerow(['timestamp', 'contact_x', 'contact_y', 'grid', 'prediction', 'confidence'])
 
     def save_positions(self, positions, timestamps, grid=None, prediction=None, confidence=None):
-        """
-        Save positions points and grid to CSV file
-
-        Args:
-            positions: Array of (x,y) coordinates
-            timestamps: Array of corresponding timestamps
-            grid: 28x28 numpy array of the trajectory grid
-            prediction: Predicted digit
-            confidence: Confidence of the prediction
-        """
         # Convert grid to string representation
         grid_str = np.array2string(grid, separator=',', threshold=np.inf) if grid is not None else ''
         
@@ -129,9 +115,6 @@ class DigitRecognizer:
         
     
     def check_trajectory_start(self, force_magnitude, current_time, position):
-        """
-        Check if a new trajectory has started
-        """
         if not self.trajectory_active and force_magnitude > self.FORCE_THRESHOLD:
             if self.last_force_time is None:
                 self.last_force_time = current_time
@@ -148,9 +131,6 @@ class DigitRecognizer:
         return False
     
     def check_trajectory_end(self, force_magnitude, current_time, position):
-        """
-        Check if the current trajectory has ended
-        """
         if self.trajectory_active and force_magnitude <= self.FORCE_THRESHOLD:
             if self.last_force_time is None:
                 self.last_force_time = current_time
@@ -164,9 +144,6 @@ class DigitRecognizer:
         return False
     
     def contact_callback(self, msg):
-        """
-        Process incoming contact force messages
-        """
         # Calculate force magnitude
         force_magnitude = np.sqrt(msg.force.x**2 + msg.force.y**2 + msg.force.z**2)
         current_time = msg.header.stamp.to_sec()
@@ -195,9 +172,6 @@ class DigitRecognizer:
                 self.trajectory_active = False
 
     def process_digit(self):
-        """
-        Process collected points to recognize digit
-        """
         try:
             x_coords = np.array([p[0] for p in self.position_buffer])
             y_coords = np.array([p[1] for p in self.position_buffer])
@@ -223,19 +197,14 @@ class DigitRecognizer:
         
         return
         
-        
-            
     def trajectory_to_grid(self, x_coords, y_coords, grid_size=28, line_thickness=0):
-        """
-        Convert trajectory coordinates to grid format with top-left origin (MNIST format)
-        """
         # Normalize coordinates with padding
         x_min, x_max = x_coords.min(), x_coords.max()
         y_min, y_max = y_coords.min(), y_coords.max()
         
         # Add padding
-        x_padding = (x_max - x_min) * config['processing']['padding']['x']
-        y_padding = (y_max - y_min) * config['processing']['padding']['y']
+        x_padding = (x_max - x_min) * config['digits_recognition']['padding']['x']
+        y_padding = (y_max - y_min) * config['digits_recognition']['padding']['y']
         
         x_min -= x_padding
         x_max += x_padding
@@ -271,7 +240,7 @@ class DigitRecognizer:
     
 def main():
     try:
-        recognizer = DigitRecognizer()
+        DigitRecognizer()
         rospy.spin()
     except KeyboardInterrupt:
         rospy.loginfo("Shutting down data collector...")

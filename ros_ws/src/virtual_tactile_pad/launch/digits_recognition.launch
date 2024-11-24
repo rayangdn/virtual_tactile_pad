@@ -1,22 +1,19 @@
 <launch>
-  <!-- Define arguments -->
-   <arg name="use_optitrack" default="true" />
+  <!-- Define arguments for digits_recognition -->
   <arg name="use_ft_sensor" default="true" />
   <arg name="use_panda" default="true" />
+  <arg name="use_simulator" default="false" />
   <arg name="calibration_type" default="static" />
 
   <!-- Include the contact visualization launch file -->
   <include file="$(find virtual_tactile_pad)/launch/contact_visualization.launch">
       <arg name="use_ft_sensor" value="$(arg use_ft_sensor)" />
       <arg name="use_panda" value="$(arg use_panda)" />
+      <arg name="use_simulator" value="$(arg use_simulator)" />
       <arg name="calibration_type" value="$(arg calibration_type)" />
   </include>
 
-  <!-- Start data saver node -->
-  <node name="data_saver" pkg="virtual_tactile_pad" type="data_saver_node.py" output="screen">
-    <param name="use_optitrack" value="$(arg use_optitrack)" />
-    <param name="use_ft_sensor" value="$(arg use_ft_sensor)" />
-    <param name="use_panda" value="$(arg use_panda)" />
-  </node>
+  <!-- Start digital recognition node -->
+  <node name="digits_recognizer" pkg="virtual_tactile_pad" type="digits_recognition_node.py" output="screen"/>
 
 </launch>

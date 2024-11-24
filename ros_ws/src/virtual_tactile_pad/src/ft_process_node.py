@@ -63,7 +63,7 @@ class FTSensorWrapper:
         self.SENSOR_POS = sensor_pos
 
         # Get and validate simulator parameter from config file
-        self.USE_SIMULATOR = config['use_simulation']
+        self.USE_SIMULATOR = rospy.get_param('~use_simulator', False)  # '~' means private parameter
         if self.USE_SIMULATOR:
             rospy.loginfo("Mode: Simulation")
             self.simulator = FTSensorSimulator(self.SENSOR_POS)
@@ -71,7 +71,7 @@ class FTSensorWrapper:
             rospy.loginfo("Mode: Real Sensor")
 
         # Get and validate calibration type from config file
-        self.CALIBRATION_TYPE = config['calibration']['use_calibration']
+        self.CALIBRATION_TYPE = rospy.get_param('~calibration_type', 'static')
         if self.CALIBRATION_TYPE not in self.VALID_CALIBRATION_TYPES:
             rospy.logerr(f"Invalid calibration type: {self.CALIBRATION_TYPE}. Using default 'static'")
             self.CALIBRATION_TYPE = 'static'
@@ -84,6 +84,8 @@ class FTSensorWrapper:
             self.static_calibration_count = 0  # Counter for calibration samples
             self.static_calibration_offset = np.zeros(6)  # Calibration offset vector
             self.STATIC_CALIBRATION_SAMPLES = config['calibration']['static']['num_samples']  # Number of samples for calibration
+            if (self.USE_SIMULATOR):
+                self.STATIC_CALIBRATION_SAMPLES = 10 # Use fewer samples for simulation
         
         # Initialize ROS publisher for contact force data
         self.contact_force_pub = rospy.Publisher('/ft_process_node/contact_force', ContactForce, queue_size=10)

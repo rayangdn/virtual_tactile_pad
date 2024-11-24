@@ -14,12 +14,6 @@ with open(config_path, 'r') as f:
     config = yaml.safe_load(f)
 
 class ContactVisualizer:
-    """
-    Visualizes contact forces in RViz using markers.
-    Creates two types of markers:
-    1. A sphere to show the contact point
-    2. An arrow to represent the force vector magnitude and direction
-    """
     def __init__(self):
         """
         Initialize the contact force visualizer.
@@ -46,12 +40,6 @@ class ContactVisualizer:
         rospy.loginfo("Visualizer node started")
 
     def contact_force_callback(self, msg):
-        """
-        Callback function to process incoming contact force messages and create visualization markers.
-        
-        Args:
-            msg (ContactForce): Message containing contact position and force information
-        """
        # Skip visualization if position is at origin
         if msg.position.x == 0 and msg.position.y == 0:
             # Publish empty marker array to clear previous markers
@@ -69,15 +57,6 @@ class ContactVisualizer:
         self.marker_pub.publish(marker_array)
 
     def create_contact_point_marker(self, msg):
-        """
-        Create a sphere marker to visualize the contact point.
-        
-        Args:
-            msg (ContactForce): Message containing contact position data
-        
-        Returns:
-            Marker: Sphere marker representing contact point
-        """
         contact_marker = Marker()
         contact_marker.header = msg.header
         contact_marker.ns = "contact_point"
@@ -105,15 +84,6 @@ class ContactVisualizer:
         return contact_marker
 
     def calculate_force_orientation(self, force_vector):
-        """
-        Calculate quaternion orientation for the force vector.
-        
-        Args:
-            force_vector (np.ndarray): 3D force vector [x, y, z]
-        
-        Returns:
-            Quaternion: Orientation quaternion for the force vector
-        """
         # Normalize the force vector
         force_norm = np.linalg.norm(force_vector)
         if force_norm < 1e-6:  # Avoid division by zero
@@ -154,15 +124,6 @@ class ContactVisualizer:
         return Quaternion(x=q[0], y=q[1], z=q[2], w=q[3])
 
     def create_force_arrow_marker(self, msg):
-        """
-        Create an arrow marker to visualize the force vector.
-        
-        Args:
-            msg (ContactForce): Message containing force vector data
-        
-        Returns:
-            Marker: Arrow marker representing force magnitude and direction
-        """
         force_marker = Marker()
         force_marker.header = msg.header
         force_marker.ns = "force_arrow"

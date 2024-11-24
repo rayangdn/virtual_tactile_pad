@@ -17,7 +17,7 @@ class PoseLogger:
         
         # Create CSV file with timestamp in name
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        self.csv_filename = os.path.join(self.data_dir, f'optitrack_data_{timestamp}.csv')
+        self.csv_filename = os.path.join(self.data_dir, f'optitrack_calibration_data_{timestamp}.csv')
         
         # Initialize CSV file with headers
         with open(self.csv_filename, 'w', newline='') as csvfile:
@@ -44,12 +44,9 @@ class PoseLogger:
             writer = csv.writer(csvfile)
             writer.writerow([x, y, z])
 
-    def run(self):
-        rospy.spin()
-
 if __name__ == '__main__':
     try:
-        pose_logger = PoseLogger()
-        pose_logger.run()
+        PoseLogger()
+        rospy.spin()
     except rospy.ROSInterruptException:
         pass

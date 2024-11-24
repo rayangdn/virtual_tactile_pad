@@ -65,19 +65,15 @@ RUN sudo apt-get update && sudo apt-get install -y \
     libeigen3-dev \
     && sudo apt-get upgrade -y && sudo apt-get clean
 
-# Install Python dependencies
+# Install Python dependencies with optimized PyTorch installation
 RUN pip3 install --no-cache-dir \
-    torch \
-    torchvision \
-    torchaudio \
+    torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121 \
     matplotlib \
     numpy \
     pandas \
     scipy \
-    seaborn \
     scikit-learn \
-    pathlib \
-    pin
+    pathlib 
 
 # Handle SIMD option
 RUN if [ "${USE_SIMD}" = "ON" ] ; \ 
@@ -85,8 +81,8 @@ RUN if [ "${USE_SIMD}" = "ON" ] ; \
 
 WORKDIR /home/${USER}/ros_ws/src
 
-    # Install libfranka
-    RUN git clone --recursive https://github.com/frankaemika/libfranka && \
+# Install libfranka
+RUN git clone --recursive https://github.com/frankaemika/libfranka && \
     cd libfranka && \
     git checkout 0.8.0 && \
     git submodule update && \
@@ -99,20 +95,20 @@ WORKDIR /home/${USER}/ros_ws/src
     cd /home/${USER}/ros_ws/src && \
     ls -la  # Debug: List contents after libfranka installation
 
-    # Install franka_ros with verification
-    RUN git clone --recursive https://github.com/frankaemika/franka_ros --branch noetic-devel && \
-        cd franka_ros && \
-        git checkout 0.8.0 && \
-        git submodule update && \
-        cd .. && \
-        ls -la  # Debug: List contents after franka_ros installation
+# Install franka_ros with verification
+RUN git clone --recursive https://github.com/frankaemika/franka_ros --branch noetic-devel && \
+    cd franka_ros && \
+    git checkout 0.8.0 && \
+    git submodule update && \
+    cd .. && \
+    ls -la  # Debug: List contents after franka_ros installation
 
-    # Install Virtual Tactile Pad with verification
-    RUN git clone --depth 1 https://github.com/rayangdn/virtual_tactile_pad.git && \
-        cp -R virtual_tactile_pad/ros_ws/src/* . && \
-        rm -rf virtual_tactile_pad && \
-        ls -la  # Debug: List final contents
-        
+# Install Virtual Tactile Pad with verification
+RUN git clone --depth 1 https://github.com/rayangdn/virtual_tactile_pad.git && \
+    cp -R virtual_tactile_pad/ros_ws/src/* . && \
+    rm -rf virtual_tactile_pad && \
+    ls -la  # Debug: List final contents
+    
 # Setup ROS workspace
 WORKDIR /home/${USER}/ros_ws
 RUN rosdep install --from-paths src --ignore-src --rosdistro noetic -y --skip-keys libfranka && \

@@ -1,14 +1,3 @@
-# General Configuration
-
-# FT_sensor Configuration
-use_ft_sensor: true
-
-# Simulation Configuration
-use_simulation: false
-
-# Optitrack Configuration
-use_optitrack: true
-
 # Pad Configuration
 pad:
   # Pad dimensions
@@ -44,8 +33,6 @@ sensor:
 
 # Calibration Configuration
 calibration:
-  # Calibration type
-  use_calibration: static
   # Valid calibration types
   types:
     - static
@@ -58,9 +45,11 @@ calibration:
 processing:
   # Minimum force magnitude threshold for contact point estimation
   force_threshold: 0.4
+
+digits_recognition:
   # Time window for force data processing
   time_window: 0.1
-  # Padding for trajectory generation TO CHANGE TO ADAPT BASED ON X MIN MAX Y MIN MAX
+  # Padding for trajectory generation 
   padding:
     x: 0.5
     y: 0.2

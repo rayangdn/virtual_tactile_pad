@@ -200,7 +200,7 @@ class PandaWrapper:
 
 if __name__ == '__main__':
     try:
-        panda_sensor = PandaWrapper()
+        PandaWrapper()
         rospy.spin()
     except KeyboardInterrupt:
         print("Shutting down...")

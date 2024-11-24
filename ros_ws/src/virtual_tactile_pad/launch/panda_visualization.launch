@@ -1,0 +1,18 @@
+<launch>
+  <!-- Define the use_ft_sensor argument -->
+  <arg name="use_ft_sensor" default="true"/>
+
+  <!-- Load robot description with the ft_sensor argument -->
+  <param name="robot_description" 
+         command="$(find xacro)/xacro --inorder $(find virtual_tactile_pad)/urdf/panda_arm.urdf.xacro use_ft_sensor:=$(arg use_ft_sensor)" />
+
+  <!-- Start robot state publisher -->
+  <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" />
+
+  <!-- Start joint state publisher with GUI -->
+  <node name="joint_state_publisher_gui" pkg="joint_state_publisher_gui" type="joint_state_publisher_gui" />
+
+  <!-- Start RViz -->
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find virtual_tactile_pad)/rviz/ft_config.rviz" />
+
+</launch>
