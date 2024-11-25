@@ -51,9 +51,6 @@ RUN apt-get install -y \
     less \
     alsa-utils \
     netbase \
-    ros-noetic-vrpn-client-ros \
-    ros-${ROS_DISTRO}-joint-state-publisher-gui \
-    ros-${ROS_DISTRO}-xacro \
     mesa-utils \
     libgl1-mesa-dri \
     libgl1-mesa-glx \
@@ -75,6 +72,14 @@ RUN apt-get install -y \
     libeigen3-dev \
     python3-pip \
     && apt-get upgrade -y && apt-get clean
+
+# Install ROS dependencies
+RUN apt-get install -y ros-${ROS_DISTRO}-desktop-full \
+    ros-${ROS_DISTRO}-control-msgs \
+    ros-${ROS_DISTRO}-diagnostic-updater \
+    ros-${ROS_DISTRO}-controller-interface \
+    ros-${ROS_DISTRO}-combined-robot-hw \
+    ros-${ROS_DISTRO}-joint-limits-interface
 
 # Install Pinocchio and its dependencies
 RUN apt-get install -y \
@@ -111,39 +116,16 @@ RUN if [ "${USE_SIMD}" = "ON" ] ; \
 
 WORKDIR /home/${USER}/ros_ws/src
 
-# Install libfranka
-RUN git clone --recursive https://github.com/frankaemika/libfranka && \
-    cd libfranka && \
-    git checkout 0.8.0 && \
-    git submodule update && \
-    mkdir build && \
-    cd build && \
-    cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF .. && \
-    cmake --build . && \
-    sudo make install -j && \
-    sudo ldconfig && \
-    cd /home/${USER}/ros_ws/src && \
-    ls -la
-
-# Install franka_ros with verification
-RUN git clone --recursive https://github.com/frankaemika/franka_ros --branch noetic-devel && \
-    cd franka_ros && \
-    git checkout 0.8.0 && \
-    git submodule update && \
-    cd .. && \
-    ls -la
-
 # Install Virtual Tactile Pad with verification
 RUN git clone --depth 1 https://github.com/rayangdn/virtual_tactile_pad.git && \
     cp -R virtual_tactile_pad/ros_ws/src/* . && \
-    rm -rf virtual_tactile_pad && \
-    ls -la
+    rm -rf virtual_tactile_pad
     
 # Setup ROS workspace
 WORKDIR /home/${USER}/ros_ws
 RUN rosdep install --from-paths src --ignore-src --rosdistro noetic -y --skip-keys libfranka && \
     source /opt/ros/$ROS_DISTRO/setup.bash && \
-    catkin_make -DCMAKE_BUILD_TYPE=Release -DFranka_DIR:PATH=/home/${USER}/ros_ws/src/libfranka/build
+    catkin_make -DCMAKE_BUILD_TYPE=Release 
 
 # Configure environment
 WORKDIR /home/${USER}
