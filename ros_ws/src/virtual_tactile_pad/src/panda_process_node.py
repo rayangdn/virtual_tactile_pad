@@ -17,34 +17,34 @@ package_path = rospack.get_path('virtual_tactile_pad')
 config_path = os.path.join(os.path.dirname(__file__), '../config/config.yaml')
 with open(config_path, 'r') as f:
     config = yaml.safe_load(f)
-    
+
 class PandaWrapper:
-    
+
     VALID_CALIBRATION_TYPES = config['calibration']['types']
-    
+
     def __init__(self, panda_pos=np.array([config['panda']['position']['x'],
                                            config['panda']['position']['y'],
                                            config['panda']['position']['z']], dtype=float)):
-        
+
         # Initialize ROS node
         rospy.init_node('panda_process', anonymous=True)
 
         # Initialize Pinocchio model
-        urdf_path = os.path.join(package_path, 'urdf/panda_arm.urdf')  
+        urdf_path = os.path.join(package_path, 'urdf/panda_arm.urdf')
         self.model_pin = pin.buildModelFromUrdf(urdf_path)
         self.data_pin = self.model_pin.createData()
         self.frame_id = self.model_pin.getFrameId("ati_net_gamma")
 
         # Initialize panda position relative to origin of the pad (front left)
         self.PANDA_POS = panda_pos
-        
+
         # Get and validate calibration type from config file
         self.CALIBRATION_TYPE = 'static'  # Default calibration type
         if self.CALIBRATION_TYPE not in self.VALID_CALIBRATION_TYPES:
             rospy.logerr(f"Invalid calibration type: {self.CALIBRATION_TYPE}. Using default 'static'")
             self.CALIBRATION_TYPE = 'static'
         rospy.loginfo(f"Calibration type: {self.CALIBRATION_TYPE}")
-        
+
         # Initialize calibration parameters for static calibration
         if self.CALIBRATION_TYPE == 'static':
             self.static_calibration_array = []
@@ -52,7 +52,7 @@ class PandaWrapper:
             self.static_calibration_count = 0
             self.static_calibration_offset = np.zeros(6)
             self.STATIC_CALIBRATION_SAMPLES = config['calibration']['static']['num_samples']
-        
+
         # Initialize ROS publisher for contact force data
         self.contact_force_pub = rospy.Publisher('/panda_process_node/contact_force', ContactForce, queue_size=10)
 
@@ -70,17 +70,17 @@ class PandaWrapper:
         pin.updateFramePlacement(self.model_pin, self.data_pin, self.frame_id)
         J = pin.computeFrameJacobian(self.model_pin, self.data_pin, q, self.frame_id)
 
-        R_tot = np.zeros((6,6))
-        R_tot[0:3, 0:3] = self.data_pin.oMf[self.frame_id].rotation
-        R_tot[3:, 3:] = self.data_pin.oMf[self.frame_id].rotation
-        J = R_tot @ J
+        # R_tot = np.zeros((6,6))
+        # R_tot[0:3, 0:3] = self.data_pin.oMf[self.frame_id].rotation
+        # R_tot[3:, 3:] = self.data_pin.oMf[self.frame_id].rotation
+        # J = R_tot @ J
 
         return J
-        
+
     def callback(self, msg):
         tau_ext = np.array(msg.tau_ext_hat_filtered)
         q = np.array(msg.q)
-        
+
         # Process measurement based on calibration type
         if self.CALIBRATION_TYPE == 'static':
             if not self.static_calibration_complete:
@@ -91,17 +91,17 @@ class PandaWrapper:
         else:
             self.dynamic_calibrate(tau_ext)
             self.process_data(tau_ext, q)
-            
+
     def static_calibrate(self, params):
         self.static_calibration_array.append(params)
         self.static_calibration_count += 1
-        
+
         if self.static_calibration_count >= self.STATIC_CALIBRATION_SAMPLES:
             self.static_calibration_offset = np.mean(self.static_calibration_array, axis=0)
             self.static_calibration_complete = True
             rospy.loginfo(f"Static calibration complete, Offset: {self.static_calibration_offset}")
-            
-    def process_data(self, tau_ext, q): 
+
+    def process_data(self, tau_ext, q):
         J = self.normal_jacobian(q)  # Using Pinocchio-based Jacobian calculation
         wrench = self.estimate_external_wrench(J, tau_ext)
         self.timer += 1
@@ -109,16 +109,16 @@ class PandaWrapper:
         contact_pos = self.estimate_contact_point(wrench)
         force = wrench[:3]
         if (self.timer >= 500):
-            print(f"q: {q}")
-            print(f"tau_ext:{tau_ext}")
+            print(f"wrench: {wrench}")
+            # print(f"q: {q}")
             self.timer = 0
 
         # Create and publish ContactForce message
         msg = ContactForce()
         msg.header.stamp = rospy.Time.now()
         msg.header.frame_id = "pad"
-        msg.position.x = contact_pos[0] 
-        msg.position.y = contact_pos[1]
+        msg.position.x = contact_pos[0]
+        msg.position.y = 0.0
         msg.position.z = 0.0  # Assume contact point is on the pad
         msg.force.x = force[0]
         msg.force.y = force[1]
@@ -131,10 +131,20 @@ class PandaWrapper:
     def estimate_external_wrench(self, J, residuals):
         # Calculate pseudoinverse of Jacobian transpose
         J_pinv = np.linalg.pinv(J.T)
-        
+
         # Project residuals to get wrench (force/moment)
         wrench = J_pinv @ residuals
-                    
+
+        T = np.array([
+            [0, 1, 0, 0, 0, 0],  # f_x -> f_y
+            [0, 0, 1, 0, 0, 0],  # f_y -> f_z
+            [1, 0, 0, 0, 0, 0],  # f_z -> f_x
+            [0, 0, 0, 0, 1, 0], 
+            [0, 0, 0, 0, 0, 1],  
+            [0, 0, 0, 1, 0, 0]   
+        ])
+        wrench = T @ wrench
+
         return wrench
 
     def estimate_contact_point(self, measurement):
@@ -159,8 +169,9 @@ class PandaWrapper:
 
         p_c_d = np.linalg.lstsq(A, b, rcond=None)[0]
         estimated_point = p_c_d + self.PANDA_POS
+
         estimated_point[0] = config['pad']['dimensions']['x'] - estimated_point[0]
-            
+
         return estimated_point
 
 if __name__ == '__main__':
@@ -171,5 +182,4 @@ if __name__ == '__main__':
         print("Shutting down...")
     finally:
         rospy.signal_shutdown("User interrupted")
-        
-        
+

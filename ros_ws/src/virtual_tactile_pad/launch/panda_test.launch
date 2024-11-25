@@ -1,12 +1,21 @@
 <launch>
+  <!-- Define arguments-->
+  <arg name="use_ft_sensor" default="true" />
+  <arg name="use_panda" default="true" />
+  <arg name="use_simulator" default="false" />
+  <arg name="calibration_type" default="static" />
+
+  <!-- Include the panda visualization launch file -->
+  <include file="$(find virtual_tactile_pad)/launch/panda_visualization.launch">
+    <arg name="use_ft_sensor" value="$(arg use_ft_sensor)" />
+  </include>
+
+  <node name="contact_visualizer" pkg="virtual_tactile_pad" type="visualize_node.py" output="screen" />
+
     <!-- Launch the Franka state subscriber node -->
     <node name="franka_state_subscriber" 
-          pkg="virtual_tactile_pad" 
-          type="panda_process_node.py" 
-          output="screen">
+            pkg="virtual_tactile_pad" 
+            type="panda_process_node.py" 
+            output="screen">
     </node>
-
-    <!-- Optional: Include the Franka control launch file if you need the driver -->
-    <!-- Uncomment the following line if you need to launch the Franka driver as well -->
-    <!-- <include file="$(find franka_control)/launch/franka_control.launch" /> -->
 </launch>

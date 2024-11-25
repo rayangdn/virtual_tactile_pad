@@ -247,21 +247,21 @@
         <!-- ati-net-gamma Link -->
         <link name="ati_net_gamma">
             <visual>
-                <origin xyz="0 0 0" rpy="0 0 0.5" />
+                <origin xyz="0 0 0" rpy="0 0 0.523796327" />
                 <geometry>
                     <mesh filename="package://virtual_tactile_pad/urdf/meshes/ati_net_gamma.stl" />
                 </geometry>
                 <material name="ati_net_gamma_gray" />
             </visual>
             <collision>
-                <origin xyz="0 0 0" rpy="0 0 0.5" />
+                <origin xyz="0 0 0" rpy="0 0 0.523796327" />
                 <geometry>
                     <mesh filename="package://virtual_tactile_pad/urdf/meshes/ati_net_gamma.stl" />
                 </geometry>
             </collision>
             <inertial>
                 <mass value="1.145" />
-                <origin xyz="0 0 0" rpy="0 0 0.5" />
+                <origin xyz="0 0 0" rpy="0 0 0.523796327" />
                 <inertia ixx="0.4644" ixy="0.035" ixz="0.00153" iyy="0.6389" iyz="0.00056" izz="0.9040" />
             </inertial>
         </link>
@@ -294,7 +294,7 @@
         <joint name="ati_net_gamma_to_mounting_pad" type="fixed">
             <parent link="ati_net_gamma" />
             <child link="mounting_pad" />
-            <origin xyz="0 0 -0.0146" rpy="0 3.141592654 -0.023796327" />
+            <origin xyz="0 0 -0.0146" rpy="0 3.141592654 0" />
         </joint>
     </xacro:if>
 

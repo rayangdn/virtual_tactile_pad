@@ -37,7 +37,7 @@ class ContactVisualizer:
                         ContactForce, 
                         self.contact_force_callback)
         
-        rospy.loginfo("Visualizer node started")
+        rospy.loginfo("Visualizer node intialized")
 
     def contact_force_callback(self, msg):
        # Skip visualization if position is at origin
@@ -47,7 +47,7 @@ class ContactVisualizer:
             marker_array = MarkerArray()
             delete_marker = Marker()
             delete_marker.action = Marker.DELETEALL  # This will clear all markers
-            delete_marker.ns = "your_namespace"  # Use the same namespace as your arrows
+            delete_marker.ns = "force_arrow"  
             marker_array.markers.append(delete_marker)
             self.marker_pub.publish(marker_array)
             return

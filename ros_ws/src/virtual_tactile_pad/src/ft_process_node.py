@@ -22,7 +22,7 @@ class FTSensorSimulator:
         if self.t <= 1.0:
             force = np.array([0, 0, 0])
         elif self.t <= 10.0:
-            force = np.array([-3.0, 0.0, -3.0])
+            force = np.array([0.0, -3.0, -3.0])
         elif self.t <= 12.0:
             force = np.array([0, 0, 0])
         elif self.t <= 21.0:
