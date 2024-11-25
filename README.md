@@ -56,8 +56,8 @@ source /opt/ros/noetic/setup.bash
 # Launch F/T sensor
 roslaunch netft_rdt_driver ft_sensor.launch
 
-# Launch Cartesian impedance controller
-roslaunch franka_example_controllers cartesian_impedance_example_controller.launch robot_ip:=172.16.0.1
+# Launch franka controller
+roslaunch franka_control franka_control.launch robot_ip:=172.16.0.1
 
 # Launch rqt_plot
 rosrun rqt_plot rqt_plot
