@@ -19,6 +19,12 @@ rviz:
     y: 0.147
     z: 0.009
 
+panda:
+  # Default sensor position relative to origin of the pad (front left)
+  position:
+    x: 0.06
+    y: 0.142 # + offset
+    z: -0.008
 # ATI Gamma FT Sensor Configuration
 sensor:
   # Default sensor position relative to origin of the pad (front left)

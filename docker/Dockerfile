@@ -27,14 +27,23 @@ RUN if [ "HOST_GID" != "1000"] ; \
     then groupadd --gid ${HOST_GID} host_group && \
     usermod ${USER} -g ${HOST_GID} && \ 
     usermod ${USER} -a -G ${USER_GROUP}; fi
-USER ${USER}
 
-# Setup git identity
+# Setup git identity as user
+USER ${USER}
 RUN git config --global user.name "${GIT_NAME}"
 RUN git config --global user.email "${GIT_EMAIL}"
 
+# Install robotpkg and Pinocchio dependencies
+USER root
+RUN apt-get update && apt-get install -qqy lsb-release curl && \
+    mkdir -p /etc/apt/keyrings && \
+    curl http://robotpkg.openrobots.org/packages/debian/robotpkg.asc | tee /etc/apt/keyrings/robotpkg.asc && \
+    echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/robotpkg.asc] http://robotpkg.openrobots.org/packages/debian/pub $(lsb_release -cs) robotpkg" \
+    | tee /etc/apt/sources.list.d/robotpkg.list && \
+    apt-get update
+
 # Install system dependencies
-RUN sudo apt-get update && sudo apt-get install -y \
+RUN apt-get install -y \
     python-is-python3 \
     bash-completion \
     silversearcher-ag \
@@ -44,7 +53,7 @@ RUN sudo apt-get update && sudo apt-get install -y \
     netbase \
     ros-noetic-vrpn-client-ros \
     ros-${ROS_DISTRO}-joint-state-publisher-gui \
-    ros-${ROS_DISTRO}-pinocchio \
+    ros-${ROS_DISTRO}-xacro \
     mesa-utils \
     libgl1-mesa-dri \
     libgl1-mesa-glx \
@@ -58,23 +67,44 @@ RUN sudo apt-get update && sudo apt-get install -y \
     python3-rosinstall \
     python3-rosinstall-generator \
     python3-wstool \
+    python3-sklearn \
     build-essential \
     cmake \
     git \
     libpoco-dev \
     libeigen3-dev \
-    && sudo apt-get upgrade -y && sudo apt-get clean
+    python3-pip \
+    && apt-get upgrade -y && apt-get clean
 
-# Install Python dependencies with optimized PyTorch installation
+# Install Pinocchio and its dependencies
+RUN apt-get install -y \
+    robotpkg-py38-pinocchio \
+    robotpkg-pinocchio \
+    && apt-get clean
+
+# Set up Pinocchio environment variables
+ENV PATH=/opt/openrobots/bin:$PATH
+ENV PKG_CONFIG_PATH=/opt/openrobots/lib/pkgconfig:$PKG_CONFIG_PATH
+ENV LD_LIBRARY_PATH=/opt/openrobots/lib:$LD_LIBRARY_PATH
+ENV PYTHONPATH=/opt/openrobots/lib/python3.8/site-packages:$PYTHONPATH
+ENV CMAKE_PREFIX_PATH=/opt/openrobots:$CMAKE_PREFIX_PATH
+
+# Add environment variables to .bashrc and set permissions
+RUN echo 'export PATH=/opt/openrobots/bin:$PATH' >> /home/ros/.bashrc && \
+    echo 'export PKG_CONFIG_PATH=/opt/openrobots/lib/pkgconfig:$PKG_CONFIG_PATH' >> /home/ros/.bashrc && \
+    echo 'export LD_LIBRARY_PATH=/opt/openrobots/lib:$LD_LIBRARY_PATH' >> /home/ros/.bashrc && \
+    echo 'export PYTHONPATH=/opt/openrobots/lib/python3.8/site-packages:$PYTHONPATH' >> /home/ros/.bashrc && \
+    echo 'export CMAKE_PREFIX_PATH=/opt/openrobots:$CMAKE_PREFIX_PATH' >> /home/ros/.bashrc && \
+    chown ros:ros /home/ros/.bashrc
+
+# Switch back to ros user and verify Pinocchio installation
+USER ${USER}
+RUN bash -c "source /home/ros/.bashrc && python3 -c 'import pinocchio as pin; print(\"Pinocchio import successful\")'"
+
+# Install PyTorch with CUDA support - Python 3.8 compatible version
 RUN pip3 install --no-cache-dir \
-    torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121 \
-    matplotlib \
-    numpy \
-    pandas \
-    scipy \
-    scikit-learn \
-    pathlib 
-
+    torch==1.13.1 torchvision==0.14.1 torchaudio==0.13.1 --index-url https://download.pytorch.org/whl/cu116
+    
 # Handle SIMD option
 RUN if [ "${USE_SIMD}" = "ON" ] ; \ 
     then export CMAKE_CXX_FLAGS="-march=native -faligned-new" ; fi
@@ -93,7 +123,7 @@ RUN git clone --recursive https://github.com/frankaemika/libfranka && \
     sudo make install -j && \
     sudo ldconfig && \
     cd /home/${USER}/ros_ws/src && \
-    ls -la  # Debug: List contents after libfranka installation
+    ls -la
 
 # Install franka_ros with verification
 RUN git clone --recursive https://github.com/frankaemika/franka_ros --branch noetic-devel && \
@@ -101,13 +131,13 @@ RUN git clone --recursive https://github.com/frankaemika/franka_ros --branch noe
     git checkout 0.8.0 && \
     git submodule update && \
     cd .. && \
-    ls -la  # Debug: List contents after franka_ros installation
+    ls -la
 
 # Install Virtual Tactile Pad with verification
 RUN git clone --depth 1 https://github.com/rayangdn/virtual_tactile_pad.git && \
     cp -R virtual_tactile_pad/ros_ws/src/* . && \
     rm -rf virtual_tactile_pad && \
-    ls -la  # Debug: List final contents
+    ls -la
     
 # Setup ROS workspace
 WORKDIR /home/${USER}/ros_ws

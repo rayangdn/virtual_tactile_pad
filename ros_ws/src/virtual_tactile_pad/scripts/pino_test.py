@@ -1,5 +1,5 @@
 import numpy as np
-
+from scipy.spatial.transform import Rotation
 import pinocchio as pin
 
 
@@ -9,7 +9,7 @@ class RobotUtils():
         self.model_pin = pin.buildModelFromUrdf(urdf_path)
         self.data_pin = self.model_pin.createData()
 
-        self.frame_id = self.model_pin.getFrameId("panda_tool")
+        self.frame_id = self.model_pin.getFrameId("panda_link8")
 
     ## Pinocchio basic inverse kinematic
     # R: desired rotation matrix
@@ -129,6 +129,36 @@ class RobotUtils():
     
 
 
-robot_utils = RobotUtils("/home/luca/robot_ws/src/panda_simulation/urdf/panda.urdf")
+robot_utils = RobotUtils("/home/ros/ros_ws/src/virtual_tactile_pad/urdf/panda_arm.urdf")
 
+def test_jacobian_calculation():
+    # Create a sample joint configuration (7 joints for Panda robot)
+    q = np.array([0.0, -np.pi/4, 0.0, -3*np.pi/4, 0.0, np.pi/2, np.pi/4])
+    
+    # Get the Jacobian matrix
+    J = robot_utils.normal_jacobian(q)
+    
+    # Print the Jacobian matrix
+    print("Jacobian matrix (6x7):")
+    print("Shape:", J.shape)
+    print(np.round(J, 3))
+    
+    # Demonstrate how the Jacobian relates joint velocities to end-effector velocities
+    # Create a sample joint velocity
+    qdot = np.array([0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])  # Only moving the first joint
+    
+    # Calculate the resulting end-effector velocity using the Jacobian
+    cartesian_vel = robot_utils.forward_velocity(q, qdot)
+    
+    print("\nFor joint velocities:", qdot)
+    print("Resulting end-effector linear velocity (m/s):", np.round(cartesian_vel[:3], 3))
+    print("Resulting end-effector angular velocity (rad/s):", np.round(cartesian_vel[3:], 3))
+    
+    # Verify the relationship between joint and task space velocities
+    # Get current end-effector pose
+    R, pos = robot_utils.forward_kinematic(q)
+    print("\nCurrent end-effector position:", pos)
+    print("Current end-effector orientation (rotation matrix):")
+    print(np.round(R, 3))
 
+test_jacobian_calculation()

@@ -247,21 +247,21 @@
         <!-- ati-net-gamma Link -->
         <link name="ati_net_gamma">
             <visual>
-                <origin xyz="0 0 0" rpy="0 0 0" />
+                <origin xyz="0 0 0" rpy="0 0 0.5" />
                 <geometry>
                     <mesh filename="package://virtual_tactile_pad/urdf/meshes/ati_net_gamma.stl" />
                 </geometry>
                 <material name="ati_net_gamma_gray" />
             </visual>
             <collision>
-                <origin xyz="0 0 0" rpy="0 0 0" />
+                <origin xyz="0 0 0" rpy="0 0 0.5" />
                 <geometry>
                     <mesh filename="package://virtual_tactile_pad/urdf/meshes/ati_net_gamma.stl" />
                 </geometry>
             </collision>
             <inertial>
                 <mass value="1.145" />
-                <origin xyz="0 0 0" rpy="0 0 0" />
+                <origin xyz="0 0 0" rpy="0 0 0.5" />
                 <inertia ixx="0.4644" ixy="0.035" ixz="0.00153" iyy="0.6389" iyz="0.00056" izz="0.9040" />
             </inertial>
         </link>
@@ -269,7 +269,7 @@
         <joint name="panda_joint_to_ati_gamma" type="fixed">
             <parent link="panda_link8" />
             <child link="ati_net_gamma" />
-            <origin xyz="0 0 0" rpy="0 3.141592654 1.05398163" />
+            <origin xyz="0 0 0.0187" rpy="0 3.141592654 0.0" />
         </joint>
 
         <!-- Mounting Pad Link -->
@@ -294,7 +294,7 @@
         <joint name="ati_net_gamma_to_mounting_pad" type="fixed">
             <parent link="ati_net_gamma" />
             <child link="mounting_pad" />
-            <origin xyz="0 0 -0.0146" rpy="0 3.141592654 1.047" />
+            <origin xyz="0 0 -0.0146" rpy="0 3.141592654 -0.023796327" />
         </joint>
     </xacro:if>
 
@@ -322,7 +322,7 @@
         <joint name="panda_link8_to_mounting_pad" type="fixed">
             <parent link="panda_link8" />
             <child link="mounting_pad" />
-            <origin xyz="0 0 0" rpy="0 0 0" />  <!-- Adjusted rpy to account for no sensor -->
+            <origin xyz="0 0 0" rpy="0 0 0" />  
         </joint>
     </xacro:unless>
     

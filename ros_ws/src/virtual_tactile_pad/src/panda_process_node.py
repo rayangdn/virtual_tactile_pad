@@ -6,6 +6,12 @@ from virtual_tactile_pad.msg import ContactForce
 import numpy as np
 import yaml
 import os
+import pinocchio as pin
+import rospkg
+
+# Get package path using rospkg
+rospack = rospkg.RosPack()
+package_path = rospack.get_path('virtual_tactile_pad')
 
 # Load configuration
 config_path = os.path.join(os.path.dirname(__file__), '../config/config.yaml')
@@ -23,10 +29,17 @@ class PandaWrapper:
         # Initialize ROS node
         rospy.init_node('panda_process', anonymous=True)
 
+        # Initialize Pinocchio model
+        urdf_path = os.path.join(package_path, 'urdf/panda_arm.urdf')  
+        self.model_pin = pin.buildModelFromUrdf(urdf_path)
+        self.data_pin = self.model_pin.createData()
+        self.frame_id = self.model_pin.getFrameId("ati_net_gamma")
+
         # Initialize panda position relative to origin of the pad (front left)
         self.PANDA_POS = panda_pos
+        
         # Get and validate calibration type from config file
-        self.CALIBRATION_TYPE = config['calibration']['use_calibration']
+        self.CALIBRATION_TYPE = 'static'  # Default calibration type
         if self.CALIBRATION_TYPE not in self.VALID_CALIBRATION_TYPES:
             rospy.logerr(f"Invalid calibration type: {self.CALIBRATION_TYPE}. Using default 'static'")
             self.CALIBRATION_TYPE = 'static'
@@ -34,11 +47,11 @@ class PandaWrapper:
         
         # Initialize calibration parameters for static calibration
         if self.CALIBRATION_TYPE == 'static':
-            self.static_calibration_array = []  # Store calibration measurements
-            self.static_calibration_complete = False  # Flag for calibration status
-            self.static_calibration_count = 0  # Counter for calibration samples
-            self.static_calibration_offset = np.zeros(6)  # Calibration offset vector
-            self.STATIC_CALIBRATION_SAMPLES = config['calibration']['static']['num_samples']  # Number of samples for calibration
+            self.static_calibration_array = []
+            self.static_calibration_complete = False
+            self.static_calibration_count = 0
+            self.static_calibration_offset = np.zeros(6)
+            self.STATIC_CALIBRATION_SAMPLES = config['calibration']['static']['num_samples']
         
         # Initialize ROS publisher for contact force data
         self.contact_force_pub = rospy.Publisher('/panda_process_node/contact_force', ContactForce, queue_size=10)
@@ -49,13 +62,24 @@ class PandaWrapper:
             FrankaState,
             self.callback
         )
-        self.timer =0
+        self.timer = 0
         rospy.loginfo("Panda wrapper initialized")
 
-    def callback(self, msg):
+    def normal_jacobian(self, q):
+        pin.forwardKinematics(self.model_pin, self.data_pin, q)
+        pin.updateFramePlacement(self.model_pin, self.data_pin, self.frame_id)
+        J = pin.computeFrameJacobian(self.model_pin, self.data_pin, q, self.frame_id)
 
-        tau_ext = np.array(msg.tau_ext_hat_filtered)# External torque (7x1)
-        q =  np.array(msg.q) # Joint position (7x1)
+        R_tot = np.zeros((6,6))
+        R_tot[0:3, 0:3] = self.data_pin.oMf[self.frame_id].rotation
+        R_tot[3:, 3:] = self.data_pin.oMf[self.frame_id].rotation
+        J = R_tot @ J
+
+        return J
+        
+    def callback(self, msg):
+        tau_ext = np.array(msg.tau_ext_hat_filtered)
+        q = np.array(msg.q)
         
         # Process measurement based on calibration type
         if self.CALIBRATION_TYPE == 'static':
@@ -65,8 +89,8 @@ class PandaWrapper:
                 tau_ext -= self.static_calibration_offset
                 self.process_data(tau_ext, q)
         else:
-            self.dynamic_calibrate(measurement)
-            self.process_data(measurement)
+            self.dynamic_calibrate(tau_ext)
+            self.process_data(tau_ext, q)
             
     def static_calibrate(self, params):
         self.static_calibration_array.append(params)
@@ -78,16 +102,17 @@ class PandaWrapper:
             rospy.loginfo(f"Static calibration complete, Offset: {self.static_calibration_offset}")
             
     def process_data(self, tau_ext, q): 
-        J = self.calculate_ee_jacobian(q)
+        J = self.normal_jacobian(q)  # Using Pinocchio-based Jacobian calculation
         wrench = self.estimate_external_wrench(J, tau_ext)
-        self.timer+=1
+        self.timer += 1
 
         contact_pos = self.estimate_contact_point(wrench)
         force = wrench[:3]
         if (self.timer >= 500):
             print(f"q: {q}")
             print(f"tau_ext:{tau_ext}")
-            self.timer=0
+            self.timer = 0
+
         # Create and publish ContactForce message
         msg = ContactForce()
         msg.header.stamp = rospy.Time.now()
@@ -98,72 +123,12 @@ class PandaWrapper:
         msg.force.x = force[0]
         msg.force.y = force[1]
         msg.force.z = force[2]
-        #self.contact_force_pub.publish(msg)
-        
+        self.contact_force_pub.publish(msg)
 
     def dynamic_calibrate(self, measurement):
         rospy.logwarn("Dynamic calibration not yet implemented")
-    
-    def get_panda_dh_params(self):
-        return np.array([
-            [0,      0,      0.333,  0],
-            [0,      -np.pi/2, 0,      0],
-            [0,      np.pi/2,  0.316,  0],
-            [0.0825, np.pi/2,  0,      0],
-            [-0.0825, -np.pi/2, 0.384,  0],
-            [0,      np.pi/2,  0,      0],
-            [0.088,  np.pi/2,  0,      0]
-        ])
-    
-    def transform_matrix(self, a, alpha, d, theta):
-        return np.array([
-            [np.cos(theta), -np.sin(theta)*np.cos(alpha),  np.sin(theta)*np.sin(alpha), a*np.cos(theta)],
-            [np.sin(theta),  np.cos(theta)*np.cos(alpha), -np.cos(theta)*np.sin(alpha), a*np.sin(theta)],
-            [0,          np.sin(alpha),             np.cos(alpha),            d],
-            [0,          0,                      0,                     1]
-        ])
-
-    def calculate_ee_jacobian(self, q):
-        dh = self.get_panda_dh_params()
-    
-        # Initialize
-        T = np.eye(4)
-        z_axes = []
-        positions = []
-        
-        # Forward kinematics
-        for i in range(7):
-            current_dh = dh[i].copy()
-            current_dh[3] = q[i]
-            Ti = self.transform_matrix(*current_dh)
-            T = T @ Ti
-            z_axes.append(T[:3, 2])
-            positions.append(T[:3, 3])
-        
-        # End effector position and rotation
-        R_ee = T[:3, :3]  # End-effector rotation matrix
-        p_ee = positions[-1]
-        
-        # Initialize Jacobian
-        J = np.zeros((6, 7))
-        
-        # Calculate Jacobian columns in base frame
-        for i in range(7):
-            p_i = np.zeros(3) if i == 0 else positions[i-1]
-            J[:3, i] = np.cross(z_axes[i], (p_ee - p_i))
-            J[3:, i] = z_axes[i]
-        
-        # Transform to end-effector frame
-        R_block = np.block([
-            [R_ee.T, np.zeros((3,3))],
-            [np.zeros((3,3)), R_ee.T]
-        ])
-        J_ee = R_block @ J
-        
-        return J_ee
 
     def estimate_external_wrench(self, J, residuals):
-
         # Calculate pseudoinverse of Jacobian transpose
         J_pinv = np.linalg.pinv(J.T)
         
@@ -193,8 +158,8 @@ class PandaWrapper:
         b = np.concatenate([moment, [-self.PANDA_POS[2]]])
 
         p_c_d = np.linalg.lstsq(A, b, rcond=None)[0]
-        estimated_point = p_c_d + self.PANDA_POS # Add sensor position to get contact point in pad frame
-        estimated_point[0] = config['pad']['dimensions']['x'] - estimated_point[0] # Convert to pad frame
+        estimated_point = p_c_d + self.PANDA_POS
+        estimated_point[0] = config['pad']['dimensions']['x'] - estimated_point[0]
             
         return estimated_point
 
@@ -206,3 +171,5 @@ if __name__ == '__main__':
         print("Shutting down...")
     finally:
         rospy.signal_shutdown("User interrupted")
+        
+        
