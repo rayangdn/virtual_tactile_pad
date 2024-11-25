@@ -79,7 +79,9 @@ RUN apt-get install -y ros-${ROS_DISTRO}-desktop-full \
     ros-${ROS_DISTRO}-diagnostic-updater \
     ros-${ROS_DISTRO}-controller-interface \
     ros-${ROS_DISTRO}-combined-robot-hw \
-    ros-${ROS_DISTRO}-joint-limits-interface
+    ros-${ROS_DISTRO}-joint-limits-interface \
+    ros-${ROS_DISTRO}-libfranka \
+    ros-${ROS_DISTRO}-franka-ros 
 
 # Install Pinocchio and its dependencies
 RUN apt-get install -y \

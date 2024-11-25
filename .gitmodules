@@ -8,6 +8,3 @@
 [submodule "ros_ws/src/net-ft-ros"]
 	path = ros_ws/src/net-ft-ros
 	url = https://github.com/epfl-lasa/net-ft-ros.git
-[submodule "ros_ws/src/franka_ros"]
-	path = ros_ws/src/franka_ros
-	url = https://github.com/frankaemika/franka_ros
