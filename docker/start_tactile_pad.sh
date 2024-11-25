@@ -61,30 +61,16 @@ fi
 
 # Handle interactive/server specific arguments
 if [ "${MODE}" != "connect" ]; then
+
     # Check if a container with this name is already running
     if [ "$( docker container inspect -f '{{.State.Status}}' ${CONTAINER_NAME} 2>/dev/null)" == "running" ]; then
         echo "A container named ${CONTAINER_NAME} is already running. Stopping it."
         docker stop ${CONTAINER_NAME}
     fi
 
-    # Add graphics device access
-    FWD_ARGS+=(--device=/dev/dri:/dev/dri)
-    
-    # Add X11 forwarding for GUI
-    FWD_ARGS+=(-e DISPLAY="${DISPLAY}")
-    FWD_ARGS+=(-v /tmp/.X11-unix:/tmp/.X11-unix:rw)
-    
-    # Add environment variables for graphics
-    FWD_ARGS+=(-e XDG_RUNTIME_DIR="/tmp/runtime-ros")
-    FWD_ARGS+=(-e LIBGL_ALWAYS_SOFTWARE=1)
-    
-    # Add video group
-    FWD_ARGS+=(--group-add video)
-    
     # network for ros
-    FWD_ARGS+=(--net host)
+    FWD_ARGS+=(--net=host)    # Share host IP
     FWD_ARGS+=(--env ROS_HOSTNAME="$(hostname)")
-    FWD_ARGS+=(--env ROS_IP="$ROS_IP")
 
     # Handle GPU usage
     [[ ${USE_NVIDIA_TOOLKIT} = true ]] && GPU_FLAG="--gpus all" || GPU_FLAG=""
@@ -92,20 +78,6 @@ if [ "${MODE}" != "connect" ]; then
     # Other
     FWD_ARGS+=("--privileged")
 
-    # Add volume src
-    docker volume rm virtual_tactile_pad
-    docker volume create --driver local \
-    --opt type="none" \
-    --opt device="${PWD}/../ros_ws/src/" \
-    --opt o="bind" \
-    "virtual_tactile_pad"
-
-    FWD_ARGS+=(--volume="virtual_tactile_pad:/home/ros/ros_ws/src:rw")
-    
-    # Create runtime directory with proper permissions
-    mkdir -p /tmp/runtime-ros
-    chmod 0700 /tmp/runtime-ros
-    chown ${USER}:${USER} /tmp/runtime-ros
 fi
 
 # Trick aica-docker into making a server on a host network container
@@ -118,9 +90,6 @@ if [ "${MODE}" == "" ]; then
     MODE=interactive
 fi
 
-# Enable X11 forwarding from docker
-xhost +local:docker
-
 # Start docker using aica
 aica-docker \
     "${MODE}" \
@@ -129,6 +98,3 @@ aica-docker \
     -n "${CONTAINER_NAME}" \
     ${GPU_FLAG} \
     "${FWD_ARGS[@]}"
-
-# Ensure runtime directory exists in container
-docker exec ${CONTAINER_NAME} bash -c 'mkdir -p /tmp/runtime-ros && chmod 0700 /tmp/runtime-ros && chown ${USER}:${USER} /tmp/runtime-ros' || true
