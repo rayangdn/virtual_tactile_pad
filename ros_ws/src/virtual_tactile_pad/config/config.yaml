@@ -50,7 +50,7 @@ calibration:
 # Processing Configuration
 processing:
   # Minimum force magnitude threshold for contact point estimation
-  force_threshold: 1.0
+  force_threshold: 0.5
 
 digits_recognition:
   # Time window for force data processing

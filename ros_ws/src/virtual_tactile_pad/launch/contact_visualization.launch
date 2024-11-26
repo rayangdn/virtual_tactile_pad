@@ -2,19 +2,22 @@
   <!-- Define arguments-->
   <arg name="use_ft_sensor" default="true" />
   <arg name="use_panda" default="true" />
-  <arg name="use_simulator" default="false" />
+  <arg name="use_simulation" default="false" />
   <arg name="calibration_type" default="static" />
+  <arg name="robot_ip" default="172.16.0.1" unless="$(arg use_simulation)"/>
 
   <!-- Include the panda visualization launch file -->
   <include file="$(find virtual_tactile_pad)/launch/panda_visualization.launch">
     <arg name="use_ft_sensor" value="$(arg use_ft_sensor)" />
+     <arg name="use_simulation" value="$(arg use_simulation)"/>
+     <arg name="robot_ip" value="$(arg robot_ip)"/>
   </include>
 
    <!-- Start FT-related nodes only if use_ft_sensor is true -->
    <group if="$(arg use_ft_sensor)">
     <!-- Start FT process node -->
     <node name="ft_process" pkg="virtual_tactile_pad" type="ft_process_node.py" output="screen">
-      <param name="use_simulator" value="$(arg use_simulator)" />
+      <param name="use_simulation" value="$(arg use_simulation)" />
       <param name="calibration_type" value="$(arg calibration_type)" />
     </node>
 

@@ -90,6 +90,10 @@ if [ "${MODE}" != "connect" ]; then
     # Privileged mode
     FWD_ARGS+=("--privileged")
 
+    # Add Franka Panda specific permissions
+    FWD_ARGS+=("--cap-add=sys_nice")
+    FWD_ARGS+=("--ulimit" "rtprio=99")
+
     # Add volume src
     docker volume rm virtual_tactile_pad
     docker volume create --driver local \

@@ -63,7 +63,7 @@ class FTSensorWrapper:
         self.SENSOR_POS = sensor_pos
 
         # Get and validate simulator parameter from config file
-        self.USE_SIMULATOR = rospy.get_param('~use_simulator', False)  # '~' means private parameter
+        self.USE_SIMULATOR = rospy.get_param('~use_simulation', False)  # '~' means private parameter
         if self.USE_SIMULATOR:
             rospy.loginfo("Mode: Simulation")
             self.simulator = FTSensorSimulator(self.SENSOR_POS)
