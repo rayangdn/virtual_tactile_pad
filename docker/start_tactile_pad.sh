@@ -24,77 +24,87 @@ FWS_FLAGS=()
 SHOW_HELP=false
 
 while [ "$#" -gt 0 ]; do
-   case "$1" in
-   -i | --image)
-       IMAGE_NAME=$2
-       shift 2
-       ;;
-   -u | --user)
-       USERNAME=$2
-       shift 2
-       ;;
-   -m | --mode)
-       MODE=$2
-       shift 2
-       ;;
-   -h | --help)
-       SHOW_HELP=true
-       shift 1
-       ;;
-   *)
-       if [ -z "${MODE}" ]; then
-           MODE=$1
-       else
-           FWD_ARGS+=("$1")
-       fi
-       shift 1
-       ;;
-   esac
+    case "$1" in
+    -i | --image)
+        IMAGE_NAME=$2
+        shift 2
+        ;;
+    -u | --user)
+        USERNAME=$2
+        shift 2
+        ;;
+    -m | --mode)
+        MODE=$2
+        shift 2
+        ;;
+    -h | --help)
+        SHOW_HELP=true
+        shift 1
+        ;;
+    *)
+        if [ -z "${MODE}" ]; then
+            MODE=$1
+        else
+            FWD_ARGS+=("$1")
+        fi
+        shift 1
+        ;;
+    esac
 done
 
 # Help verbose
 if $SHOW_HELP; then
-   echo $HELP_MESSAGE
-   aica-docker $MODE -h
-   exit 1
+    echo $HELP_MESSAGE
+    aica-docker $MODE -h
+    exit 1
 fi
 
 # Handle interactive/server specific arguments
 if [ "${MODE}" != "connect" ]; then
 
     # Check if a container with this name is already running
-    if [ "$( docker container inspect -f '{{.State.Status}}' ${CONTAINER_NAME} 2>/dev/null)" == "running" ]; then
+    if [ "$(docker container inspect -f '{{.State.Status}}' ${CONTAINER_NAME} 2>/dev/null)" == "running" ]; then
         echo "A container named ${CONTAINER_NAME} is already running. Stopping it."
         docker stop ${CONTAINER_NAME}
     fi
 
     # network for ros
-    FWD_ARGS+=(--net=host)    # Share host IP
+    FWD_ARGS+=(--net=host) # Share host IP
     FWD_ARGS+=(--env ROS_HOSTNAME="$(hostname)")
 
-   # Handle GPU usage
-   [[ ${USE_NVIDIA_TOOLKIT} = true ]] && GPU_FLAG="--gpus all" || GPU_FLAG=""
+    # Handle GPU usage
+    [[ ${USE_NVIDIA_TOOLKIT} = true ]] && GPU_FLAG="--gpus all" || GPU_FLAG=""
 
-   # Privileged mode
-   FWD_ARGS+=("--privileged")
+    # Privileged mode
+    FWD_ARGS+=("--privileged")
+
+    # Add volume src
+    docker volume rm virtual_tactile_pad
+    docker volume create --driver local \
+        --opt type="none" \
+        --opt device="${PWD}/../ros_ws/src/" \
+        --opt o="bind" \
+        "virtual_tactile_pad"
+
+    FWD_ARGS+=(--volume="virtual_tactile_pad:/home/ros/ros_ws/src:rw")
 
 fi
 
 # Trick aica-docker into making a server on a host network container
 if [ "${MODE}" == "server" ]; then
-   FWD_ARGS+=("--detach")
-   MODE=interactive
+    FWD_ARGS+=("--detach")
+    MODE=interactive
 fi
 
 if [ "${MODE}" == "" ]; then
-   MODE=interactive
+    MODE=interactive
 fi
 
 # Start docker using aica
 aica-docker \
-   "${MODE}" \
-   "${IMAGE_NAME}" \
-   -u "${USERNAME}" \
-   -n "${CONTAINER_NAME}" \
-   ${GPU_FLAG} \
-   "${FWD_ARGS[@]}"
+    "${MODE}" \
+    "${IMAGE_NAME}" \
+    -u "${USERNAME}" \
+    -n "${CONTAINER_NAME}" \
+    ${GPU_FLAG} \
+    "${FWD_ARGS[@]}"
