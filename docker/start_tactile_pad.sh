@@ -1,4 +1,5 @@
 #!/bin/bash
+
 IMAGE_NAME="epfl-lasa/virtual_tactile_pad"
 CONTAINER_NAME="${IMAGE_NAME//[\/.]/-}"
 USERNAME="ros"
@@ -11,12 +12,12 @@ Build the '${IMAGE_NAME}' image.
 Options:
  interactive            Spin the image in the console
  server                 Spin the image as an ssh server
- connect                Connects to an active container
- -i, --image            The name of the image to use to start the container
- -u, --user             Specify the name of the login user. (optional)
- -h, --help             Show this help message and the one from aica-docker
+ connect               Connects to an active container
+ -i, --image           The name of the image to use to start the container
+ -u, --user            Specify the name of the login user. (optional)
+ -h, --help            Show this help message and the one from aica-docker
  Additional arguments are passed to the aica-docker command.
- "
+"
 
 # Argument parsing
 RUN_FLAGS=()
@@ -61,13 +62,24 @@ fi
 
 # Handle interactive/server specific arguments
 if [ "${MODE}" != "connect" ]; then
-
     # Check if a container with this name is already running
     if [ "$(docker container inspect -f '{{.State.Status}}' ${CONTAINER_NAME} 2>/dev/null)" == "running" ]; then
         echo "A container named ${CONTAINER_NAME} is already running. Stopping it."
         docker stop ${CONTAINER_NAME}
     fi
 
+    # Allow X server connections from the container
+    xhost +local:docker
+
+    # Graphics and display related arguments
+    FWD_ARGS+=(--device=/dev/dri:/dev/dri)
+    FWD_ARGS+=(-e DISPLAY=$DISPLAY)
+    FWD_ARGS+=(-e QT_X11_NO_MITSHM=1)
+    FWD_ARGS+=(-v /tmp/.X11-unix:/tmp/.X11-unix:rw)
+
+    # Set XDG_RUNTIME_DIR
+    FWD_ARGS+=(-e XDG_RUNTIME_DIR=/tmp/runtime-ros)
+    
     # network for ros
     FWD_ARGS+=(--net=host) # Share host IP
     FWD_ARGS+=(--env ROS_HOSTNAME="$(hostname)")
@@ -85,9 +97,7 @@ if [ "${MODE}" != "connect" ]; then
         --opt device="${PWD}/../ros_ws/src/" \
         --opt o="bind" \
         "virtual_tactile_pad"
-
     FWD_ARGS+=(--volume="virtual_tactile_pad:/home/ros/ros_ws/src:rw")
-
 fi
 
 # Trick aica-docker into making a server on a host network container
@@ -99,6 +109,10 @@ fi
 if [ "${MODE}" == "" ]; then
     MODE=interactive
 fi
+
+# Create runtime directory if it doesn't exist
+mkdir -p /tmp/runtime-ros
+chmod 700 /tmp/runtime-ros
 
 # Start docker using aica
 aica-docker \

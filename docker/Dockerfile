@@ -17,6 +17,12 @@ RUN if [ "${HOST_GID}" != "1000" ]; \
     usermod ${USER} -g ${HOST_GID} && \ 
     usermod ${USER} -a -G ${USER_GROUP}; fi
 
+# Install PyTorch with specific version compatible with Python 3.8
+RUN pip3 install --no-cache-dir \
+torch==1.13.1 \
+torchvision==0.14.1 \
+torchaudio==0.13.1
+
 # Install ROS packages and dependencies
 RUN apt-get update -y && \
     apt-get install -y \
@@ -41,25 +47,6 @@ RUN touch /home/${USER}/.bashrc && \
 
 # Switch to user for git operations
 USER ${USER}
-
-# Install and build libfranka
-# WORKDIR /home/${USER}/ros_ws/src
-# RUN git clone --recursive https://github.com/frankaemika/libfranka && \
-#     cd libfranka && \
-#     git checkout 0.8.0 && \
-#     git submodule update && \
-#     mkdir build && \
-#     cd build && \
-#     cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF .. && \
-#     cmake --build . && \
-#     make -j && \
-#     sudo make install -j && \
-#     sudo ldconfig
-
-# # Install and build franka_ros
-# WORKDIR /home/${USER}/ros_ws/src
-# RUN git clone --recursive https://github.com/frankaemika/franka_ros --branch noetic-devel
-# RUN cd franka_ros && git checkout 0.8.0 && git submodule update
 
 # Install and build virtual_tactile_pad
 WORKDIR /home/${USER}/ros_ws/src
@@ -94,4 +81,4 @@ RUN sudo apt-get update && \
     sudo apt-get clean
 
 WORKDIR /home/${USER}/ros_ws
-RUN /bin/bash -c "source /opt/ros/$ROS_DISTRO/setup.bash; catkin_make; source devel/setup.bash"
+# RUN /bin/bash -c "source /opt/ros/$ROS_DISTRO/setup.bash; catkin_make; source devel/setup.bash"
