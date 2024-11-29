@@ -17,14 +17,23 @@ class ContactVisualizer:
     def __init__(self):
         """
         Initialize the contact force visualizer.
-        Sets up ROS node, publisher for markers, and subscriber for contact force data.
+        Sets up ROS node, publisher for markers, and subscribers for contact force data
+        based on parameters.
         """
         # Initialize ROS node
         rospy.init_node('contact_visualizer', anonymous=True)
 
-        # Offset for visualization in RViz (to align with tactile pad frame)
+        # Get parameters
+        self.use_ft_sensor = rospy.get_param('~use_ft_sensor', False)
+        self.use_panda = rospy.get_param('~use_panda', False)
+
+        # Store latest messages from each source
+        self.ft_sensor_msg = None
+        self.panda_msg = None
+
+        # Offset for visualization in RViz
         self.X_OFFSET = config['rviz']['position']['x']
-        self.y_OFFSET = config['rviz']['position']['y']
+        self.Y_OFFSET = config['rviz']['position']['y']
         self.Z_OFFSET = config['rviz']['position']['z']
     
         # Create publisher for visualization markers
@@ -32,42 +41,81 @@ class ContactVisualizer:
                                         MarkerArray, 
                                         queue_size=10)
 
-        # Subscribe to contact force messages from the FT sensor
-        rospy.Subscriber('/ft_process_node/contact_force', 
-                        ContactForce, 
-                        self.contact_force_callback)
-        
-        rospy.loginfo("Visualizer node intialized")
+        # Set up subscribers based on parameters
+        if self.use_ft_sensor:
+            rospy.Subscriber('/ft_process_node/contact_force', 
+                           ContactForce, 
+                           self.ft_sensor_callback)
+            rospy.loginfo("Subscribed to FT sensor contact force topic")
 
-    def contact_force_callback(self, msg):
-       # Skip visualization if position is at origin
-        if msg.position.x == 0 and msg.position.y == 0:
-            # Publish empty marker array to clear previous markers
-             # Create a marker array with a deletion marker
-            marker_array = MarkerArray()
-            delete_marker = Marker()
-            delete_marker.action = Marker.DELETEALL  # This will clear all markers
-            delete_marker.ns = "force_arrow"  
-            marker_array.markers.append(delete_marker)
-            self.marker_pub.publish(marker_array)
-            return
+        if self.use_panda:
+            rospy.Subscriber('/panda_process_node/contact_force',
+                           ContactForce,
+                           self.panda_callback)
+            rospy.loginfo("Subscribed to Panda contact force topic")
+
+        if not (self.use_ft_sensor or self.use_panda):
+            rospy.logwarn("No contact force sources enabled. Enable either use_ft_sensor or use_panda parameter.")
+        
+        # Create a timer to update visualizations periodically
+        self.update_timer = rospy.Timer(rospy.Duration(0.1), self.update_visualization)  # 10Hz update rate
+        
+        rospy.loginfo("Visualizer node initialized")
+
+    def ft_sensor_callback(self, msg):
+        self.ft_sensor_msg = msg
+
+    def panda_callback(self, msg):
+        self.panda_msg = msg
+
+    def update_visualization(self, event):
         marker_array = MarkerArray()
-        marker_array.markers.append(self.create_contact_point_marker(msg))
-        marker_array.markers.append(self.create_force_arrow_marker(msg))
+        marker_id = 0
+
+        # Add FT sensor visualization if available
+        if self.ft_sensor_msg is not None:
+            if not (self.ft_sensor_msg.position.x == 0 and self.ft_sensor_msg.position.y == 0):
+                marker_array.markers.append(
+                    self.create_contact_point_marker(self.ft_sensor_msg, marker_id, "ft_sensor", color=(1.0, 0.0, 0.0))
+                )
+                marker_id += 1
+                marker_array.markers.append(
+                    self.create_force_arrow_marker(self.ft_sensor_msg, marker_id, "ft_sensor", color=(1.0, 1.0, 0.0))
+                )
+                marker_id += 1
+
+        # Add Panda visualization if available
+        if self.panda_msg is not None:
+            if not (self.panda_msg.position.x == 0 and self.panda_msg.position.y == 0):
+                marker_array.markers.append(
+                    self.create_contact_point_marker(self.panda_msg, marker_id, "panda", color=(0.0, 0.0, 1.0))
+                )
+                marker_id += 1
+                marker_array.markers.append(
+                    self.create_force_arrow_marker(self.panda_msg, marker_id, "panda", color=(0.0, 0.5, 1.0))
+                )
+                marker_id += 1
+
+        # If no valid messages, clear all markers
+        if len(marker_array.markers) == 0:
+            delete_marker = Marker()
+            delete_marker.action = Marker.DELETEALL
+            marker_array.markers.append(delete_marker)
+
         self.marker_pub.publish(marker_array)
 
-    def create_contact_point_marker(self, msg):
+    def create_contact_point_marker(self, msg, marker_id, ns, color):
         contact_marker = Marker()
         contact_marker.header = msg.header
-        contact_marker.ns = "contact_point"
-        contact_marker.id = 0
+        contact_marker.ns = f"contact_point_{ns}"
+        contact_marker.id = marker_id
         contact_marker.type = Marker.SPHERE
         contact_marker.action = Marker.ADD
 
         # Set position with coordinate transformation
         contact_marker.pose.position.x = msg.position.x + self.X_OFFSET
         contact_marker.pose.position.y = -msg.position.z + self.Z_OFFSET
-        contact_marker.pose.position.z = -msg.position.y + self.y_OFFSET
+        contact_marker.pose.position.z = -msg.position.y + self.Y_OFFSET
         contact_marker.pose.orientation.w = 1.0
 
         # Set marker size (5mm diameter sphere)
@@ -75,10 +123,10 @@ class ContactVisualizer:
         contact_marker.scale.y = 0.005
         contact_marker.scale.z = 0.005
 
-        # Set marker color (red)
-        contact_marker.color.r = 1.0
-        contact_marker.color.g = 0.0
-        contact_marker.color.b = 0.0
+        # Set marker color
+        contact_marker.color.r = color[0]
+        contact_marker.color.g = color[1]
+        contact_marker.color.b = color[2]
         contact_marker.color.a = 1.0
 
         return contact_marker
@@ -123,11 +171,11 @@ class ContactVisualizer:
         q = quaternion_from_matrix(rotation_matrix)
         return Quaternion(x=q[0], y=q[1], z=q[2], w=q[3])
 
-    def create_force_arrow_marker(self, msg):
+    def create_force_arrow_marker(self, msg, marker_id, ns, color):
         force_marker = Marker()
         force_marker.header = msg.header
-        force_marker.ns = "force_arrow"
-        force_marker.id = 1
+        force_marker.ns = f"force_arrow_{ns}"
+        force_marker.id = marker_id
         force_marker.type = Marker.ARROW
         force_marker.action = Marker.ADD
 
@@ -148,35 +196,30 @@ class ContactVisualizer:
         # Calculate arrow length (scaled by force magnitude)
         arrow_length = force_magnitude * 0.01  # Scale factor for visualization
 
-        # Shift arrow position backward from contact point
-        # The position needs to be shifted by arrow_length in the opposite direction of the force
+        # Calculate contact position and arrow position
         contact_position = np.array([
             msg.position.x + self.X_OFFSET,
             -msg.position.z + self.Z_OFFSET,
-            -msg.position.y + self.y_OFFSET
+            -msg.position.y + self.Y_OFFSET
         ])
         
-        # Calculate shifted position (arrow start point)
         arrow_position = contact_position - force_dir * arrow_length
 
-        # Set arrow position
+        # Set arrow position and orientation
         force_marker.pose.position.x = arrow_position[0]
         force_marker.pose.position.y = arrow_position[1]
         force_marker.pose.position.z = arrow_position[2]
-
-        # Calculate and set arrow orientation based on force direction
-        orientation = self.calculate_force_orientation(force_vector)
-        force_marker.pose.orientation = orientation
+        force_marker.pose.orientation = self.calculate_force_orientation(force_vector)
 
         # Set arrow dimensions
         force_marker.scale.x = arrow_length  # Arrow length
         force_marker.scale.y = 0.005  # Arrow shaft diameter
         force_marker.scale.z = 0.005  # Arrow head diameter
 
-        # Set arrow color (yellow)
-        force_marker.color.r = 1.0
-        force_marker.color.g = 1.0
-        force_marker.color.b = 0.0
+        # Set arrow color
+        force_marker.color.r = color[0]
+        force_marker.color.g = color[1]
+        force_marker.color.b = color[2]
         force_marker.color.a = 1.0
 
         return force_marker

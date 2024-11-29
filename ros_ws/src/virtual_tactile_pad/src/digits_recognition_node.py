@@ -86,8 +86,10 @@ class DigitRecognizer:
         self.clear_trajectory_file()
         
         # Subscribe to contact force topic
-        rospy.Subscriber("/ft_process_node/contact_force", ContactForce, self.contact_callback)
-        
+        rospy.Subscriber("/ft_process_node/contact_force", 
+                         ContactForce, 
+                         self.contact_callback)
+        rospy.loginfo("Subscribed to FT sensor contact force topic")
         rospy.loginfo("Digit recognizer node started")
     
     def clear_trajectory_file(self):

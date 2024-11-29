@@ -28,8 +28,8 @@ class PoseLogger:
         self.pose_sub = rospy.Subscriber(
             '/vrpn_client_node/marker_pad/pose_from_base_pad',
             PoseStamped,
-            self.pose_callback
-        )
+            self.pose_callback)
+        rospy.loginfo("Subscribed to Optitrack contact force topic")
         
         rospy.loginfo(f"Started logging pose data to: {self.csv_filename}")
 

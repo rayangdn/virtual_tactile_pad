@@ -13,9 +13,9 @@ class DataSaver:
         rospy.init_node('data_saver', anonymous=True)
         
         # Get parameters
-        self.use_optitrack = rospy.get_param('~use_optitrack', True)
-        self.use_ft_sensor = rospy.get_param('~use_ft_sensor', True)
-        self.use_panda = rospy.get_param('~use_panda', True)
+        self.use_optitrack = rospy.get_param('~use_optitrack', False)
+        self.use_ft_sensor = rospy.get_param('~use_ft_sensor', False)
+        self.use_panda = rospy.get_param('~use_panda', False)
             
         # Set up data logging
         self.data_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data', 'raw')
@@ -27,13 +27,16 @@ class DataSaver:
         headers = ['timestamp']
         if self.use_ft_sensor:
             headers.extend(['ft_x', 'ft_y', 'ft_z', 'ft_force_x', 'ft_force_y', 'ft_force_z'])
-        if self.use_optitrack:
-            headers.extend(['opti_x', 'opti_y', 'opti_z', 
-                          'opti_orientation_x', 'opti_orientation_y', 'opti_orientation_z', 'opti_orientation_w'])
+
         if self.use_panda:
             # Add panda-specific headers if needed
             headers.extend(['panda_x', 'panda_y', 'panda_z', 
                           'panda_force_x', 'panda_force_y', 'panda_force_z'])
+        
+        if self.use_optitrack:
+            headers.extend(['opti_x', 'opti_y', 'opti_z', 
+                            'opti_orientation_x', 'opti_orientation_y', 
+                            'opti_orientation_z', 'opti_orientation_w'])
         
         # Initialize the CSV file with headers
         with open(self.filename, 'w', newline='') as csvfile:
@@ -44,29 +47,31 @@ class DataSaver:
         self.latest_ft_data = None if self.use_ft_sensor else {}
         self.latest_pose_data = None if self.use_optitrack else {}
         self.latest_panda_data = None if self.use_panda else {}
-        self.write_interval = 1.0 / 100  # 100Hz write rate
+        self.write_interval = 1.0 / 80.0  # 80 Hz write rate
         
         # Set up subscribers based on parameters
         if self.use_ft_sensor:
             self.ft_sub = rospy.Subscriber(
                 "/ft_process_node/contact_force",
                 ContactForce,
-                self.ft_data_callback
-            )
-            rospy.loginfo("FT sensor data logging enabled")
+                self.ft_data_callback)
+            rospy.loginfo("Subscribed to FT sensor contact force topic")
         
+        if self.use_panda:
+            self.panda_sub = rospy.Subscriber(
+                "/ft_process_node/contact_force",
+                ContactForce,
+                self.panda_data_callback)
+            rospy.loginfo("Panda data logging enabled")
+            rospy.loginfo("Subscribed to Panda contact force topic")
+
         if self.use_optitrack:
             self.opti_sub = rospy.Subscriber(
                 '/vrpn_client_node/marker_pad/pose_from_base_pad',
                 PoseStamped,
-                self.optitrack_data_callback
-            )
-            rospy.loginfo("OptiTrack data logging enabled")
+                self.optitrack_data_callback)
+            rospy.loginfo("Subscribed to Optitrack contact force topic")
             
-        if self.use_panda:
-            #self.panda_sub = rospy.Subscriber(...)
-            rospy.loginfo("Panda data logging enabled")
-        
         # Set up timer for periodic data writing
         rospy.Timer(rospy.Duration(self.write_interval), self.write_data)
         
@@ -85,9 +90,9 @@ class DataSaver:
                 'ft_force_z': msg.force.z
             }
             
-    def ft_data_callback(self, msg):
-        if self.use_ft_sensor:
-            self.latest_ft_data = {
+    def panda_data_callback(self, msg):
+        if self.use_panda:
+            self.latest_panda_data = {
                 'panda_x': msg.position.x,
                 'panda_y': msg.position.y,
                 'panda_z': msg.position.z,
@@ -115,10 +120,10 @@ class DataSaver:
         conditions = []
         if self.use_ft_sensor:
             conditions.append(self.latest_ft_data is not None)
-        if self.use_optitrack:
-            conditions.append(self.latest_pose_data is not None)
         if self.use_panda:
             conditions.append(self.latest_panda_data is not None)
+        if self.use_optitrack:
+            conditions.append(self.latest_pose_data is not None)
         
         # Only write if we have all required data
         if all(conditions):
@@ -137,12 +142,12 @@ class DataSaver:
             # Add Panda data if enabled
             if self.use_panda:
                 row_data.extend([
-                    self.latest_ft_data['panda_x'],
-                    self.latest_ft_data['panda_y'],
-                    self.latest_ft_data['panda_z'],
-                    self.latest_ft_data['panda_force_x'],
-                    self.latest_ft_data['panda_force_y'],
-                    self.latest_ft_data['panda_force_z']
+                    self.latest_panda_data['panda_x'],
+                    self.latest_panda_data['panda_y'],
+                    self.latest_panda_data['panda_z'],
+                    self.latest_panda_data['panda_force_x'],
+                    self.latest_panda_data['panda_force_y'],
+                    self.latest_panda_data['panda_force_z']
                 ])
             # Add OptiTrack data if enabled
             if self.use_optitrack:

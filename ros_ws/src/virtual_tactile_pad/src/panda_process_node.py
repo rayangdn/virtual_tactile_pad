@@ -7,6 +7,8 @@ import numpy as np
 import yaml
 import os
 import pinocchio as pin
+import subprocess
+import tempfile
 import rospkg
 
 # Get package path using rospkg
@@ -29,17 +31,32 @@ class PandaWrapper:
         # Initialize ROS node
         rospy.init_node('panda_process', anonymous=True)
 
-        # Initialize Pinocchio model
-        urdf_path = os.path.join(package_path, 'urdf/panda_arm.urdf')
-        self.model_pin = pin.buildModelFromUrdf(urdf_path)
-        self.data_pin = self.model_pin.createData()
-        self.frame_id = self.model_pin.getFrameId("ati_net_gamma")
+        # First process the xacro file into a URDF
+        xacro_path = os.path.join(package_path, 'urdf/panda_arm.urdf.xacro')
+        urdf_string = self.process_xacro_to_urdf(xacro_path)
+        
+        # Create a temporary URDF file
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.urdf', delete=False) as tmp_urdf:
+            tmp_urdf.write(urdf_string)
+            tmp_urdf_path = tmp_urdf.name
+        
+        try:
+            # Initialize Pinocchio model from the processed URDF
+            self.model_pin = pin.buildModelFromUrdf(tmp_urdf_path)
+            self.data_pin = self.model_pin.createData()
+            self.frame_id = self.model_pin.getFrameId("ati_net_gamma")
+        finally:
+            # Clean up the temporary file
+            os.unlink(tmp_urdf_path)
 
         # Initialize panda position relative to origin of the pad (front left)
         self.PANDA_POS = panda_pos
 
+        # Timer for debugging
+        self.timer = 0
+
         # Get and validate calibration type from config file
-        self.CALIBRATION_TYPE = 'static'  # Default calibration type
+        self.CALIBRATION_TYPE = rospy.get_param('~calibration_type', 'static') # Default calibration type
         if self.CALIBRATION_TYPE not in self.VALID_CALIBRATION_TYPES:
             rospy.logerr(f"Invalid calibration type: {self.CALIBRATION_TYPE}. Using default 'static'")
             self.CALIBRATION_TYPE = 'static'
@@ -60,10 +77,22 @@ class PandaWrapper:
         self.state_sub = rospy.Subscriber(
             '/franka_state_controller/franka_states',
             FrankaState,
-            self.callback
-        )
-        self.timer = 0
+            self.callback)
+        rospy.loginfo("Subscribed to Franka states topic")
         rospy.loginfo("Panda wrapper initialized")
+
+    def process_xacro_to_urdf(self, xacro_path):
+        try:
+            # Run xacro processing command
+            # Note: Adding use_ft_sensor:=true as it appears to be a required argument from your XACRO
+            cmd = ['xacro', xacro_path, 'use_ft_sensor:=true']
+            result = subprocess.run(cmd, 
+                                 capture_output=True, 
+                                 text=True, 
+                                 check=True)
+            return result.stdout
+        except subprocess.CalledProcessError as e:
+            raise RuntimeError(f"Failed to process XACRO file: {e.stderr}")
 
     def normal_jacobian(self, q):
         pin.forwardKinematics(self.model_pin, self.data_pin, q)
@@ -99,18 +128,18 @@ class PandaWrapper:
         if self.static_calibration_count >= self.STATIC_CALIBRATION_SAMPLES:
             self.static_calibration_offset = np.mean(self.static_calibration_array, axis=0)
             self.static_calibration_complete = True
-            rospy.loginfo(f"Static calibration complete, Offset: {self.static_calibration_offset}")
+            rospy.loginfo(f"Panda static calibration complete, Offset: {self.static_calibration_offset}")
 
     def process_data(self, tau_ext, q):
         J = self.normal_jacobian(q)  # Using Pinocchio-based Jacobian calculation
         wrench = self.estimate_external_wrench(J, tau_ext)
-        self.timer += 1
-
         contact_pos = self.estimate_contact_point(wrench)
         force = wrench[:3]
+
+        self.timer += 1
         if (self.timer >= 500):
-            print(f"wrench: {wrench}")
-            # print(f"q: {q}")
+            # print(f"Panda wrench: {wrench}")
+            # print(f"Panda contact pos {contact_pos}")
             self.timer = 0
 
         # Create and publish ContactForce message
@@ -118,7 +147,7 @@ class PandaWrapper:
         msg.header.stamp = rospy.Time.now()
         msg.header.frame_id = "pad"
         msg.position.x = contact_pos[0]
-        msg.position.y = 0.0
+        msg.position.y = contact_pos[1]
         msg.position.z = 0.0  # Assume contact point is on the pad
         msg.force.x = force[0]
         msg.force.y = force[1]
@@ -132,16 +161,16 @@ class PandaWrapper:
         # Calculate pseudoinverse of Jacobian transpose
         J_pinv = np.linalg.pinv(J.T)
 
-        # Project residuals to get wrench (force/moment)
+        # Project residuals to get wrench in ft sensor frame (force/moment)
         wrench = J_pinv @ residuals
 
         T = np.array([
-            [0, 1, 0, 0, 0, 0],  # f_x -> f_y
-            [0, 0, 1, 0, 0, 0],  # f_y -> f_z
-            [1, 0, 0, 0, 0, 0],  # f_z -> f_x
-            [0, 0, 0, 0, 1, 0], 
-            [0, 0, 0, 0, 0, 1],  
-            [0, 0, 0, 1, 0, 0]   
+            [1,  0, 0, 0,  0, 0],  # f_x -> f_y
+            [0,  0, 1, 0,  0, 0],  # f_y -> f_z
+            [0, -1, 0, 0,  0, 0],  # f_z -> f_x
+            [0,  0, 0, 1,  0, 0], 
+            [0,  0, 0, 0,  0, 1],  
+            [0,  0, 0, 0, -1, 0]   
         ])
         wrench = T @ wrench
 

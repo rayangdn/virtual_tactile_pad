@@ -4,25 +4,38 @@
   <arg name="use_panda" default="true" />
   <arg name="use_simulation" default="false" />
   <arg name="calibration_type" default="static" />
-  <arg name="robot_ip" default="172.16.0.1" unless="$(arg use_simulation)"/>
+  <arg name="robot_ip" default="172.16.0.1" unless="$(arg use_simulation)" />
 
   <!-- Include the panda visualization launch file -->
   <include file="$(find virtual_tactile_pad)/launch/panda_visualization.launch">
     <arg name="use_ft_sensor" value="$(arg use_ft_sensor)" />
-     <arg name="use_simulation" value="$(arg use_simulation)"/>
-     <arg name="robot_ip" value="$(arg robot_ip)"/>
+    <arg name="use_simulation" value="$(arg use_simulation)" />
+    <arg name="robot_ip" value="$(arg robot_ip)" unless="$(arg use_simulation)" />
   </include>
 
-   <!-- Start FT-related nodes only if use_ft_sensor is true -->
-   <group if="$(arg use_ft_sensor)">
+  <!-- Start FT-related nodes only if use_ft_sensor is true -->
+  <group if="$(arg use_ft_sensor)">
+    <!-- Include the panda visualization launch file -->
+    <include file="$(find netft_rdt_driver)/launch/ft_sensor.launch"></include>
     <!-- Start FT process node -->
     <node name="ft_process" pkg="virtual_tactile_pad" type="ft_process_node.py" output="screen">
       <param name="use_simulation" value="$(arg use_simulation)" />
       <param name="calibration_type" value="$(arg calibration_type)" />
     </node>
-
-    <!-- Start contact visualizer node -->
-    <node name="contact_visualizer" pkg="virtual_tactile_pad" type="visualize_node.py" output="screen" />
   </group>
+
+  <!-- Start Panda-related nodes only if use_panda is true -->
+  <group if="$(arg use_panda)">
+    <!-- Start FT process node -->
+    <node name="panda_process" pkg="virtual_tactile_pad" type="panda_process_node.py" output="screen">
+      <param name="calibration_type" value="$(arg calibration_type)" />
+    </node>
+  </group>
+
+  <!-- Start contact visualizer node -->
+  <node name="contact_visualizer" pkg="virtual_tactile_pad" type="visualize_node.py" output="screen">
+    <param name="use_ft_sensor" value="$(arg use_ft_sensor)" />
+    <param name="use_panda" value="$(arg use_panda)" />
+  </node>
 
 </launch>

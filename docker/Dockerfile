@@ -72,6 +72,31 @@ RUN echo "source /opt/ros/${ROS_DISTRO}/setup.bash" >> /home/${USER}/.bashrc && 
     echo "source /home/${USER}/ros_ws/devel/setup.bash" >> /home/${USER}/.bashrc && \
     chown ${USER}:${HOST_GID} /home/${USER}/.bashrc
 
+# Install robotpkg
+RUN apt-get update && apt-get install -qqy \
+    lsb-release \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Setup robotpkg repository
+RUN mkdir -p /etc/apt/keyrings && \
+    curl http://robotpkg.openrobots.org/packages/debian/robotpkg.asc | tee /etc/apt/keyrings/robotpkg.asc && \
+    echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/robotpkg.asc] http://robotpkg.openrobots.org/packages/debian/pub $(lsb_release -cs) robotpkg" \
+    | tee /etc/apt/sources.list.d/robotpkg.list
+
+# Install Pinocchio
+RUN apt-get update && \
+    apt-get install -qqy robotpkg-py3*-pinocchio && \
+    rm -rf /var/lib/apt/lists/*
+
+# Setup environment variables for robotpkg
+RUN echo 'export PATH=/opt/openrobots/bin:$PATH' >> /home/${USER}/.bashrc && \
+    echo 'export PKG_CONFIG_PATH=/opt/openrobots/lib/pkgconfig:$PKG_CONFIG_PATH' >> /home/${USER}/.bashrc && \
+    echo 'export LD_LIBRARY_PATH=/opt/openrobots/lib:$LD_LIBRARY_PATH' >> /home/${USER}/.bashrc && \
+    echo 'export PYTHONPATH=/opt/openrobots/lib/python3.8/site-packages:$PYTHONPATH' >> /home/${USER}/.bashrc && \
+    echo 'export CMAKE_PREFIX_PATH=/opt/openrobots:$CMAKE_PREFIX_PATH' >> /home/${USER}/.bashrc && \
+    chown ${USER}:${HOST_GID} /home/${USER}/.bashrc
+
 # Switch back to user
 USER ${USER}
 

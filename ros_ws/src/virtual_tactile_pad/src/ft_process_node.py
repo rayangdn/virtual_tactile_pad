@@ -62,6 +62,9 @@ class FTSensorWrapper:
         # Initialize sensor position relative to origin of the pad (front left)
         self.SENSOR_POS = sensor_pos
 
+        # Timer for debugging
+        self.timer = 0
+
         # Get and validate simulator parameter from config file
         self.USE_SIMULATOR = rospy.get_param('~use_simulation', False)  # '~' means private parameter
         if self.USE_SIMULATOR:
@@ -95,11 +98,15 @@ class FTSensorWrapper:
             rospy.Timer(rospy.Duration(0.1), self.simulated_callback)
             rospy.loginfo("FT sensor simulator started")
         else:
-            rospy.Subscriber("/ft_sensor/netft_data", WrenchStamped, self.callback)
+            rospy.Subscriber(
+                "/ft_sensor/netft_data", 
+                WrenchStamped, 
+                self.callback)
+            rospy.loginfo("Subscribed to netft wrench topic")
             rospy.loginfo("FT sensor wrapper started")
 
     def callback(self, data):
-        measurement = np.array([
+        wrench = np.array([
             data.wrench.force.x,
             data.wrench.force.z, # Swap y and z axes
             data.wrench.force.y,
@@ -111,40 +118,47 @@ class FTSensorWrapper:
         # Process measurement based on calibration type
         if self.CALIBRATION_TYPE == 'static':
             if not self.static_calibration_complete:
-                self.static_calibrate(measurement)
+                self.static_calibrate(wrench)
             else:
-                self.process_data(measurement - self.static_calibration_offset)
+                self.process_data(wrench - self.static_calibration_offset)
         else:
-            self.dynamic_calibrate(measurement)
-            self.process_data(measurement)
+            self.dynamic_calibrate(wrench)
+            self.process_data(wrench)
 
     def simulated_callback(self, event):
-        measurement = self.simulator.generate_data()
+        wrench = self.simulator.generate_data()
         if self.CALIBRATION_TYPE == 'static':
             if not self.static_calibration_complete:
-                self.static_calibrate(measurement)
+                self.static_calibrate(wrench)
             else:
-                self.process_data(measurement - self.static_calibration_offset)
+                self.process_data(wrench - self.static_calibration_offset)
         else:
-            self.dynamic_calibrate(measurement)
-            self.process_data(measurement)
+            self.dynamic_calibrate(wrench)
+            self.process_data(wrench)
 
-    def static_calibrate(self, measurement):
-        self.static_calibration_array.append(measurement)
+    def static_calibrate(self, wrench):
+        self.static_calibration_array.append(wrench)
         self.static_calibration_count += 1
 
         if self.static_calibration_count >= self.STATIC_CALIBRATION_SAMPLES:
             self.static_calibration_offset = np.mean(self.static_calibration_array, axis=0)
             self.static_calibration_complete = True
-            rospy.loginfo(f"Static calibration complete. Offset: {self.static_calibration_offset}")
+            rospy.loginfo(f"FT static calibration complete. Offset: {self.static_calibration_offset}")
 
-    def dynamic_calibrate(self, measurement):
+    def dynamic_calibrate(self, wrench):
         rospy.logwarn("Dynamic calibration not yet implemented")
         
-    def process_data(self, measurement):
+    def process_data(self, wrench):
         # Calculate contact point from force/torque measurements
-        contact_pos = self.estimate_contact_point(measurement)
-        force = measurement[:3]
+        contact_pos = self.estimate_contact_point(wrench)
+        force = wrench[:3]
+
+        self.timer += 1
+        if (self.timer >= 500):
+            # print(f"FT wrench: {wrench}")
+            # print(f"FT contact pos {contact_pos}")
+            # print(f"q: {q}")
+            self.timer = 0
 
         # Create and publish ContactForce message
         msg = ContactForce()
@@ -158,9 +172,9 @@ class FTSensorWrapper:
         msg.force.z = force[2]
         self.contact_force_pub.publish(msg)
 
-    def estimate_contact_point(self, measurement):
-        force = measurement[:3]
-        moment = measurement[3:]
+    def estimate_contact_point(self, wrench):
+        force = wrench[:3]
+        moment = wrench[3:]
 
         # Check if force is below threshold
         if np.sqrt(force[0]**2 + force[1]**2 + force[2]**2) < config['processing']['force_threshold']:
