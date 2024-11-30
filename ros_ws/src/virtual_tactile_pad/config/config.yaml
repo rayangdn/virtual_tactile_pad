@@ -1,3 +1,5 @@
+# General Configuration
+
 # Pad Configuration
 pad:
   # Pad dimensions
@@ -19,6 +21,7 @@ rviz:
     y: 0.147
     z: 0.009
 
+# Panda Configuration
 panda:
   # Default sensor position relative to origin of the pad (front left)
   position:

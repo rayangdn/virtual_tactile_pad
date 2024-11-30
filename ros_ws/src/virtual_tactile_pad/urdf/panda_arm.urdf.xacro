@@ -3,7 +3,7 @@
 <robot name="panda" xmlns:xacro="http://www.ros.org/wiki/xacro">
 
     <!-- Add argument for FT sensor -->
-    <xacro:arg name="use_ft_sensor" default="false"/>
+    <xacro:arg name="use_ft_sensor" default="false" />
 
     <!-- panda Links -->
     <link name="panda_link0">
@@ -244,6 +244,33 @@
 
     <!-- Conditionally include FT sensor or direct mounting -->
     <xacro:if value="$(arg use_ft_sensor)">
+        <!-- adapter link -->
+        <link name="adapter">
+            <visual>
+                <origin xyz="0 0 0" rpy="0 0 0" />
+                <geometry>
+                    <mesh filename="package://virtual_tactile_pad/urdf/meshes/adapter.stl" />
+                </geometry>
+                <material name="adapter_gray" />
+            </visual>
+            <collision>
+                <origin xyz="0 0 0" rpy="0 0 0" />
+                <geometry>
+                    <mesh filename="package://virtual_tactile_pad/urdf/meshes/adapter.stl" />
+                </geometry>
+            </collision>
+            <inertial>
+                <mass value="0.157201" />
+                <origin xyz="0 0 0" rpy="0 0 0" />
+                <inertia ixx="7.5980706e-5" ixy="0" ixz="6.2031582e-5" iyy="0" iyz="0"
+                    izz="1.309e-4" />
+            </inertial>
+        </link>
+        <joint name="panda_joint_to_adapter" type="fixed">
+            <parent link="panda_link8" />
+            <child link="adapter" />
+            <origin xyz="0 0 0" rpy="0 0 0" />
+        </joint>
         <!-- ati-net-gamma Link -->
         <link name="ati_net_gamma">
             <visual>
@@ -262,16 +289,15 @@
             <inertial>
                 <mass value="1.145" />
                 <origin xyz="0 0 0" rpy="0 0 0.523796327" />
-                <inertia ixx="0.4644" ixy="0.035" ixz="0.00153" iyy="0.6389" iyz="0.00056" izz="0.9040" />
+                <inertia ixx="0.4644" ixy="0.035" ixz="0.00153" iyy="0.6389" iyz="0.00056"
+                    izz="0.9040" />
             </inertial>
         </link>
-
         <joint name="panda_joint_to_ati_gamma" type="fixed">
-            <parent link="panda_link8" />
+            <parent link="adapter" />
             <child link="ati_net_gamma" />
-            <origin xyz="0 0 0.0287" rpy="0 3.141592654 0" />
+            <origin xyz="0 0 0.034" rpy="0 3.141592654 0" />
         </joint>
-
         <!-- Mounting Pad Link -->
         <link name="mounting_pad">
             <visual>
@@ -286,9 +312,9 @@
                 </geometry>
             </collision>
             <inertial>
-                <mass value="0.184292" />
-                <inertia ixx="0.0000361368" ixy="0.0" ixz="0.0" iyy="0.000046691" iyz="0.0"
-                    izz="0.00007688" />
+                <mass value="0.064186" />
+                <inertia ixx="1.2643e-5" ixy="0.0" ixz="0.0" iyy="1.6296014e-5" iyz="0.0"
+                    izz="2.6868247e-5" />
             </inertial>
         </link>
         <joint name="ati_net_gamma_to_mounting_pad" type="fixed">
@@ -313,19 +339,19 @@
                 </geometry>
             </collision>
             <inertial>
-                <mass value="0.184292" />
-                <inertia ixx="0.0000361368" ixy="0.0" ixz="0.0" iyy="0.000046691" iyz="0.0"
-                    izz="0.00007688" />
+                <mass value="0.064186" />
+                <inertia ixx="1.2643e-5" ixy="0.0" ixz="0.0" iyy="1.6296014e-5" iyz="0.0"
+                    izz="2.6868247e-5" />
             </inertial>
         </link>
         <!-- Direct joint from panda_link8 to mounting_pad -->
         <joint name="panda_link8_to_mounting_pad" type="fixed">
             <parent link="panda_link8" />
             <child link="mounting_pad" />
-            <origin xyz="0 0 0" rpy="0 0 0" />  
+            <origin xyz="0 0 0" rpy="0 0 0" />
         </joint>
     </xacro:unless>
-    
+
     <!-- Pad Link -->
     <link name="pad">
         <visual>
@@ -341,7 +367,7 @@
         </collision>
         <inertial>
             <mass value="0.145376" />
-            <inertia ixx="0.0002345" ixy="0.0" ixz="0.0" iyy="0.0004074" iyz="0.0" izz="0.0001733" />
+            <inertia ixx="2.345e-4" ixy="0.0" ixz="0.0" iyy="4.074e-4" iyz="0.0" izz="1.733e-4" />
         </inertial>
     </link>
     <joint name="mounting_pad_to_pad" type="fixed">
@@ -364,5 +390,8 @@
     </material>
     <material name="ati_net_gamma_gray">
         <color rgba="0.4 0.4 0.4 1." />
+    </material>
+    <material name="adapter_gray">
+        <color rgba="0.5 0.5 0.5 1." />
     </material>
 </robot>
