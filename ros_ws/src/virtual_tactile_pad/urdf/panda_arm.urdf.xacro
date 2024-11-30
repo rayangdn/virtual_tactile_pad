@@ -287,10 +287,10 @@
                 </geometry>
             </collision>
             <inertial>
-                <mass value="1.145" />
+                <mass value="0.335594" />
                 <origin xyz="0 0 0" rpy="0 0 0.523796327" />
-                <inertia ixx="0.4644" ixy="0.035" ixz="0.00153" iyy="0.6389" iyz="0.00056"
-                    izz="0.9040" />
+                <inertia ixx="1.479e-4" ixy="0" ixz="0" iyy="2.071e-4" iyz="0"
+                    izz="2.918e-4" />
             </inertial>
         </link>
         <joint name="panda_joint_to_ati_gamma" type="fixed">
