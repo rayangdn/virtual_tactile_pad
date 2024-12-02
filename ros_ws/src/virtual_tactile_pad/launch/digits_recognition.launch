@@ -1,15 +1,15 @@
 <launch>
   <!-- Define arguments for digits_recognition -->
   <arg name="use_ft_sensor" default="true" />
-  <arg name="use_panda" default="true" />
-  <arg name="use_simulator" default="false" />
+  <arg name="use_panda" default="false" />
+  <arg name="use_simulation" default="false" />
   <arg name="calibration_type" default="static" />
 
   <!-- Include the contact visualization launch file -->
   <include file="$(find virtual_tactile_pad)/launch/contact_visualization.launch">
       <arg name="use_ft_sensor" value="$(arg use_ft_sensor)" />
       <arg name="use_panda" value="$(arg use_panda)" />
-      <arg name="use_simulator" value="$(arg use_simulator)" />
+      <arg name="use_simulation" value="$(arg use_simulation)" />
       <arg name="calibration_type" value="$(arg calibration_type)" />
   </include>
 

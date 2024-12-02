@@ -90,19 +90,18 @@ class FTSensorWrapper:
             if (self.USE_SIMULATOR):
                 self.STATIC_CALIBRATION_SAMPLES = 10 # Use fewer samples for simulation
         
-        # Initialize ROS publisher for contact force data
+        # Initialize ROS publisher for contact force and wrench data
         self.contact_force_pub = rospy.Publisher('/ft_process_node/contact_force', ContactForce, queue_size=10)
+        self.wrench_pub = rospy.Publisher('/ft_process_node/wrench', WrenchStamped, queue_size=10)
 
     def start(self):
         if self.USE_SIMULATOR:
             rospy.Timer(rospy.Duration(0.1), self.simulated_callback)
             rospy.loginfo("FT sensor simulator started")
         else:
-            rospy.Subscriber(
-                "/ft_sensor/netft_data", 
-                WrenchStamped, 
-                self.callback)
-            rospy.loginfo("Subscribed to netft wrench topic")
+            self.ft_sub = rospy.Subscriber("/ft_sensor/netft_data", 
+                                           WrenchStamped, 
+                                           self.callback)
             rospy.loginfo("FT sensor wrapper started")
 
     def callback(self, data):
@@ -160,17 +159,29 @@ class FTSensorWrapper:
             # print(f"q: {q}")
             self.timer = 0
 
-        # Create and publish ContactForce message
-        msg = ContactForce()
-        msg.header.stamp = rospy.Time.now()
-        msg.header.frame_id = "pad"
-        msg.position.x = contact_pos[0] 
-        msg.position.y = contact_pos[1]
-        msg.position.z = 0.0  # Assume contact point is on the pad
-        msg.force.x = force[0]
-        msg.force.y = force[1]
-        msg.force.z = force[2]
-        self.contact_force_pub.publish(msg)
+         # Create and publish ContactForce message
+        contact_msg = ContactForce()
+        contact_msg.header.stamp = rospy.Time.now()
+        contact_msg.header.frame_id = "pad"
+        contact_msg.position.x = contact_pos[0]
+        contact_msg.position.y = contact_pos[1]
+        contact_msg.position.z = 0.0  # Assume contact point is on the pad
+        contact_msg.force.x = force[0]
+        contact_msg.force.y = force[1]
+        contact_msg.force.z = force[2]
+        self.contact_force_pub.publish(contact_msg)
+
+        # Create and publish WrenchStamped message
+        wrench_msg = WrenchStamped()
+        wrench_msg.header.stamp = rospy.Time.now()
+        wrench_msg.header.frame_id = "pad"  # Using same frame as ContactForce
+        wrench_msg.wrench.force.x = wrench[0]
+        wrench_msg.wrench.force.y = wrench[1]
+        wrench_msg.wrench.force.z = wrench[2]
+        wrench_msg.wrench.torque.x = wrench[3]
+        wrench_msg.wrench.torque.y = wrench[4]
+        wrench_msg.wrench.torque.z = wrench[5]
+        self.wrench_pub.publish(wrench_msg)
 
     def estimate_contact_point(self, wrench):
         force = wrench[:3]

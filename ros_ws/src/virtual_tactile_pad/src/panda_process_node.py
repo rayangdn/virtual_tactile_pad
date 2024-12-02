@@ -2,6 +2,7 @@
 
 import rospy
 from franka_msgs.msg import FrankaState
+from geometry_msgs.msg import WrenchStamped
 from virtual_tactile_pad.msg import ContactForce
 import numpy as np
 import yaml
@@ -10,6 +11,9 @@ import pinocchio as pin
 import subprocess
 import tempfile
 import rospkg
+from sklearn.preprocessing import StandardScaler
+import joblib
+import pandas as pd
 
 # Get package path using rospkg
 rospack = rospkg.RosPack()
@@ -55,6 +59,9 @@ class PandaWrapper:
         # Timer for debugging
         self.timer = 0
 
+        # Initialize old q values
+        self.previous_q = np.zeros(7)
+
         # Get and validate calibration type from config file
         self.CALIBRATION_TYPE = rospy.get_param('~calibration_type', 'static') # Default calibration type
         if self.CALIBRATION_TYPE not in self.VALID_CALIBRATION_TYPES:
@@ -67,18 +74,26 @@ class PandaWrapper:
             self.static_calibration_array = []
             self.static_calibration_complete = False
             self.static_calibration_count = 0
-            self.static_calibration_offset = np.zeros(6)
+            self.static_calibration_offset = np.zeros(7)
             self.STATIC_CALIBRATION_SAMPLES = config['calibration']['static']['num_samples']
 
-        # Initialize ROS publisher for contact force data
+        # Load ML model and scalers
+        model_dir = os.path.join(package_path, 'models')
+        try:
+            self.ml_model = joblib.load(os.path.join(model_dir, 'wrench_correction_model.pkl'))
+            self.scaler_X = joblib.load(os.path.join(model_dir, 'scaler_X.pkl'))
+            self.scaler_y = joblib.load(os.path.join(model_dir, 'scaler_y.pkl'))
+            rospy.loginfo("ML model loaded successfully")
+        except Exception as e:
+            rospy.logerr(f"Failed to load ML model: {e}")
+            self.ml_model = None
+        # Initialize ROS publisher for contact force and wrench data
         self.contact_force_pub = rospy.Publisher('/panda_process_node/contact_force', ContactForce, queue_size=10)
-
+        self.wrench_pub = rospy.Publisher('/panda_process_node/wrench', WrenchStamped, queue_size=10)
         # Create subscriber to the franka_states topic
-        self.state_sub = rospy.Subscriber(
-            '/franka_state_controller/franka_states',
-            FrankaState,
-            self.callback)
-        rospy.loginfo("Subscribed to Franka states topic")
+        self.state_sub = rospy.Subscriber('/franka_state_controller/franka_states',
+                                          FrankaState,
+                                          self.callback)
         rospy.loginfo("Panda wrapper initialized")
 
     def process_xacro_to_urdf(self, xacro_path):
@@ -109,13 +124,25 @@ class PandaWrapper:
     def callback(self, msg):
         tau_ext = np.array(msg.tau_ext_hat_filtered)
         q = np.array(msg.q)
+        
+        q_changed = any(~np.isclose(q, self.previous_q, rtol=1e-5, atol=1e-4))
 
+        # Store current q for next comparison
+        self.previous_q = q.copy()
+        
         # Process measurement based on calibration type
         if self.CALIBRATION_TYPE == 'static':
+            # Redo static calibration if q has changed
+            if q_changed:
+                self.static_calibration_complete = False
+                self.static_calibration_count = 0
+                self.static_calibration_array = []
+                self.static_calibration_offset = np.zeros(6)
+                
             if not self.static_calibration_complete:
                 self.static_calibrate(tau_ext)
             else:
-                tau_ext -= self.static_calibration_offset
+                #tau_ext -= self.static_calibration_offset
                 self.process_data(tau_ext, q)
         else:
             self.dynamic_calibrate(tau_ext)
@@ -132,27 +159,71 @@ class PandaWrapper:
 
     def process_data(self, tau_ext, q):
         J = self.normal_jacobian(q)  # Using Pinocchio-based Jacobian calculation
-        wrench = self.estimate_external_wrench(J, tau_ext)
+        uncorrected_wrench = self.estimate_external_wrench(J, tau_ext)
+
+        # Apply ML correction if model is loaded
+        if self.ml_model is not None:
+            try:
+                # Create DataFrame with proper feature names
+                wrench_data = {
+                    'panda_wrench_force_x': uncorrected_wrench[0],   # -0.00064777
+                    'panda_wrench_force_y': uncorrected_wrench[1],   # -0.00643131
+                    'panda_wrench_force_z': uncorrected_wrench[2],   #  0.07050676
+                    'panda_wrench_torque_x': uncorrected_wrench[3],  #  0.03454712
+                    'panda_wrench_torque_y': uncorrected_wrench[4],  #  0.00047575
+                    'panda_wrench_torque_z': uncorrected_wrench[5]   #  0.00012796
+                }
+                # Prepare input for ML model
+                wrench_input = pd.DataFrame([wrench_data])
+                
+                # Scale input
+                wrench_input_scaled = self.scaler_X.transform(wrench_input)
+                
+                # Get ML prediction
+                corrected_wrench_scaled = self.ml_model.predict(wrench_input_scaled)
+                
+                # Inverse transform to get actual wrench values
+                wrench = self.scaler_y.inverse_transform(corrected_wrench_scaled).flatten()
+            except Exception as e:
+                rospy.logwarn(f"ML correction failed, using uncorrected wrench: {e}")
+                wrench = uncorrected_wrench
+        else:
+            wrench = uncorrected_wrench
+
         contact_pos = self.estimate_contact_point(wrench)
         force = wrench[:3]
 
         self.timer += 1
         if (self.timer >= 500):
-            # print(f"Panda wrench: {wrench}")
+            print(f"Tau ext: {tau_ext}")
+            print(f"Panda wrench: {wrench}")
+            #print(f"Joint positions: {q}")
             # print(f"Panda contact pos {contact_pos}")
             self.timer = 0
 
         # Create and publish ContactForce message
-        msg = ContactForce()
-        msg.header.stamp = rospy.Time.now()
-        msg.header.frame_id = "pad"
-        msg.position.x = contact_pos[0]
-        msg.position.y = contact_pos[1]
-        msg.position.z = 0.0  # Assume contact point is on the pad
-        msg.force.x = force[0]
-        msg.force.y = force[1]
-        msg.force.z = force[2]
-        self.contact_force_pub.publish(msg)
+        contact_msg = ContactForce()
+        contact_msg.header.stamp = rospy.Time.now()
+        contact_msg.header.frame_id = "pad"
+        contact_msg.position.x = contact_pos[0]
+        contact_msg.position.y = contact_pos[1]
+        contact_msg.position.z = 0.0  # Assume contact point is on the pad
+        contact_msg.force.x = force[0]
+        contact_msg.force.y = force[1]
+        contact_msg.force.z = force[2]
+        self.contact_force_pub.publish(contact_msg)
+
+        # Create and publish WrenchStamped message
+        wrench_msg = WrenchStamped()
+        wrench_msg.header.stamp = rospy.Time.now()
+        wrench_msg.header.frame_id = "pad"  # Using same frame as ContactForce
+        wrench_msg.wrench.force.x = wrench[0]
+        wrench_msg.wrench.force.y = wrench[1]
+        wrench_msg.wrench.force.z = wrench[2]
+        wrench_msg.wrench.torque.x = wrench[3]
+        wrench_msg.wrench.torque.y = wrench[4]
+        wrench_msg.wrench.torque.z = wrench[5]
+        self.wrench_pub.publish(wrench_msg)
 
     def dynamic_calibrate(self, measurement):
         rospy.logwarn("Dynamic calibration not yet implemented")
