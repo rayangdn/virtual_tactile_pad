@@ -28,7 +28,6 @@
   <group if="$(arg use_panda)">
     <!-- Start FT process node -->
     <node name="panda_process" pkg="virtual_tactile_pad" type="panda_process_node.py" output="screen">
-      <param name="calibration_type" value="$(arg calibration_type)" />
     </node>
   </group>
 

@@ -15,8 +15,11 @@ import rospkg
 config_path = os.path.join(os.path.dirname(__file__), '../config/config.yaml')
 with open(config_path, 'r') as f:
     config = yaml.safe_load(f)
+
+rospack = rospkg.RosPack()
+package_path = rospack.get_path('virtual_tactile_pad')
             
-class Net(nn.Module):
+class MNISTCNN(nn.Module):
     def __init__(self):
         super(Net, self).__init__()
         self.conv1 = nn.Conv2d(1, 32, 3, 1)
@@ -48,13 +51,11 @@ class DigitRecognizer:
         rospy.init_node('digits_recognizer', anonymous=True)
 
         # Get model path from ROS package
-        rospack = rospkg.RosPack()
-        package_path = rospack.get_path('virtual_tactile_pad')
-        model_path = os.path.join(package_path, 'model', 'mnist_cnn.pth')
+        model_path = os.path.join(package_path, 'models', 'digits_recognition', 'mnist_cnn.pth')
 
         # Load the model
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.model = Net()
+        self.model = MNISTCNN()
         self.model.load_state_dict(torch.load(model_path, map_location=torch.device('cpu')))
         self.model.to(self.device)  
         self.model.eval()
