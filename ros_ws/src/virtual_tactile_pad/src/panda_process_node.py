@@ -14,6 +14,8 @@ import tempfile
 import rospkg
 import torch
 import torch.nn as nn
+import joblib
+import pandas as pd
 
 # Load configuration
 config_path = os.path.join(os.path.dirname(__file__), '../config/config.yaml')
@@ -49,12 +51,40 @@ class PandaWrapper:
 
     VALID_CALIBRATION_TYPES = config['calibration']['types']
 
+    WRENCH_FEATURES = [
+        'panda_wrench_force_x', 'panda_wrench_force_y', 'panda_wrench_force_z',
+        'panda_wrench_torque_x', 'panda_wrench_torque_y', 'panda_wrench_torque_z'
+    ]
+
     def __init__(self, panda_pos=np.array([config['panda']['position']['x'],
                                            config['panda']['position']['y'],
                                            config['panda']['position']['z']], dtype=float)):
 
         # Initialize ROS node
         rospy.init_node('panda_process', anonymous=True)
+
+        # Initialize particle filter parameters
+        self.num_particles = 100
+        self.process_noise_std = 0.01
+        self.measurement_noise_std = 0.1
+        self.pad_dims = [
+            config['pad']['dimensions']['x'],
+            config['pad']['dimensions']['y']
+        ]
+        
+        # Initialize particles (x, y positions)
+        self.particles = np.random.uniform(
+            low=[0.0, 0.0],
+            high=self.pad_dims,
+            size=(self.num_particles, 2)
+        )
+        self.weights = np.ones(self.num_particles) / self.num_particles
+
+        # Load ML model and scalers
+        model_dir = os.path.join(package_path, 'models')
+        self.ml_model = joblib.load(os.path.join(model_dir, 'wrench_correction_model.pkl'))
+        self.scaler_X = joblib.load(os.path.join(model_dir, 'scaler_X.pkl'))
+        self.scaler_y = joblib.load(os.path.join(model_dir, 'scaler_y.pkl'))
 
         # First process the xacro file into a URDF
         xacro_path = os.path.join(package_path, 'urdf/panda_arm.urdf.xacro')
@@ -119,6 +149,62 @@ class PandaWrapper:
             return result.stdout
         except subprocess.CalledProcessError as e:
             raise RuntimeError(f"Failed to process XACRO file: {e.stderr}")
+
+    def gaussian_prob(self, x, mu, sigma):
+        return (1.0 / (sigma * np.sqrt(2 * np.pi))) * np.exp(-0.5 * ((x - mu) / sigma) ** 2)
+
+    def predict_particles(self):
+        noise = np.random.normal(
+            0,
+            self.process_noise_std,
+            size=self.particles.shape
+        )
+        self.particles += noise
+
+        # Ensure particles stay within pad boundaries
+        self.particles = np.clip(
+            self.particles,
+            [0.0, 0.0],
+            self.pad_dims
+        )
+
+    def update_particle_weights(self, measurement_pos):
+        # Calculate likelihoods for all particles at once
+        likelihood_x = self.gaussian_prob(
+            self.particles[:, 0],
+            measurement_pos[0],
+            self.measurement_noise_std
+        )
+        likelihood_y = self.gaussian_prob(
+            self.particles[:, 1],
+            measurement_pos[1],
+            self.measurement_noise_std
+        )
+        
+        # Update weights
+        self.weights *= likelihood_x * likelihood_y
+        
+        # Normalize weights
+        self.weights += 1e-300  # Avoid division by zero
+        self.weights /= np.sum(self.weights)
+
+    def resample_particles(self):
+        # Systematic resampling
+        cumsum = np.cumsum(self.weights)
+        cumsum[-1] = 1.0  # Handle numerical errors
+        
+        # Generate points for resampling
+        positions = (np.random.random() + np.arange(self.num_particles)) / self.num_particles
+        
+        # Resample particles
+        indexes = np.searchsorted(cumsum, positions)
+        self.particles = self.particles[indexes]
+        
+        # Reset weights
+        self.weights = np.ones(self.num_particles) / self.num_particles
+
+    def get_filtered_position(self):
+        return np.average(self.particles, weights=self.weights, axis=0)
 
     def normal_jacobian(self, q):
         pin.forwardKinematics(self.model_pin, self.data_pin, q)
@@ -201,20 +287,57 @@ class PandaWrapper:
         else:
             self.process_data(tau_ext, q)
         
+    def correct_wrench(self, wrench):
+
+        # Convert numpy array to DataFrame with proper feature names
+        wrench_df = pd.DataFrame([wrench], columns=self.WRENCH_FEATURES)
+
+        # Prepare input for ML model
+        wrench_scaled = self.scaler_X.transform(wrench_df)
         
+        # Get ML model prediction
+        corrected_wrench_scaled = self.ml_model.predict(wrench_scaled)
+        
+        # Inverse transform the prediction
+        corrected_wrench = self.scaler_y.inverse_transform(corrected_wrench_scaled)
+        
+        return corrected_wrench.flatten()
+
     def process_data(self, tau_ext, q):
 
         J = self.normal_jacobian(q)
         wrench = self.estimate_external_wrench(J, tau_ext)
 
+        # Apply ML-based correction to the wrench
+        corrected_wrench = self.correct_wrench(wrench)
+        
+        # Use corrected wrench for contact point estimation
         contact_pos = self.estimate_contact_point(wrench)
         force = wrench[:3]
 
+        # Apply particle filter if force magnitude is above threshold
+        force_magnitude = np.linalg.norm(force)
+        if force_magnitude > config['processing']['force_threshold']:
+            # Particle filter steps
+            self.predict_particles()
+            self.update_particle_weights(contact_pos[:2])  # Only use x, y coordinates
+            
+            # Resample if effective sample size is too low
+            n_eff = 1.0 / np.sum(self.weights ** 2)
+            if n_eff < self.num_particles / 2:
+                self.resample_particles()
+            
+            # Get filtered position
+            filtered_pos = self.get_filtered_position()
+            
+            # Update contact position with filtered x, y coordinates
+            contact_pos[:2] = filtered_pos
+
         self.timer += 1
         if (self.timer >= 500):
-            print(f"Tau externe: {tau_ext}")
-            print(f"Original wrench: {wrench}")
-            #print(f"Corrected wrench: {corrected_wrench}")
+            # print(f"Tau externe: {tau_ext}")
+            # print(f"Original wrench: {wrench}")
+            print(f"Panda wrench: {wrench}")
             self.timer = 0
 
         # Publish messages with corrected wrench
