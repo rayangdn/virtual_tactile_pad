@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 # Read the CSV file
-df = pd.read_csv('data_20241202_135540.csv')
+df = pd.read_csv('data_20241206_091048.csv')
 
 # Filter out rows where both x and y are 0 for each system
 df = df[(df['ft_x'] != 0) | (df['ft_y'] != 0)]

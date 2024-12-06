@@ -14,7 +14,7 @@ rospack = rospkg.RosPack()
 package_path = rospack.get_path('virtual_tactile_pad')
 
 # Read the CSV file
-df = pd.read_csv('data_20241202_141405.csv')
+df = pd.read_csv('data_20241206_091048.csv')
 
 # Filter out rows where both x and y are 0 for each system
 

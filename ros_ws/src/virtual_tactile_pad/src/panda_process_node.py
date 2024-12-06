@@ -46,6 +46,9 @@ class WrenchCorrectionMLP(nn.Module):
         return x + self.residual_weight * correction
 
 class PandaWrapper:
+
+    VALID_CALIBRATION_TYPES = config['calibration']['types']
+
     def __init__(self, panda_pos=np.array([config['panda']['position']['x'],
                                            config['panda']['position']['y'],
                                            config['panda']['position']['z']], dtype=float)):
@@ -76,6 +79,21 @@ class PandaWrapper:
 
         # Timer for debugging
         self.timer = 0
+
+        # Get and validate calibration type from config file
+        self.CALIBRATION_TYPE = rospy.get_param('~calibration_type', 'static')
+        if self.CALIBRATION_TYPE not in self.VALID_CALIBRATION_TYPES:
+            rospy.logerr(f"Invalid calibration type: {self.CALIBRATION_TYPE}. Using default 'static'")
+            self.CALIBRATION_TYPE = 'static'
+        rospy.loginfo(f"Calibration type: {self.CALIBRATION_TYPE}")
+
+        # Initialize calibration parameters for static calibration
+        if self.CALIBRATION_TYPE == 'static':
+            self.static_calibration_array = []  # Store calibration measurements
+            self.static_calibration_complete = False  # Flag for calibration status
+            self.static_calibration_count = 0  # Counter for calibration samples
+            self.static_calibration_offset = np.zeros(6)  # Calibration offset vector
+            self.STATIC_CALIBRATION_SAMPLES = config['calibration']['static']['num_samples']  # Number of samples for calibration
 
         # Load trained model
         self.model = WrenchCorrectionMLP()
@@ -110,6 +128,15 @@ class PandaWrapper:
         except subprocess.CalledProcessError as e:
             raise RuntimeError(f"Failed to process XACRO file: {e.stderr}")
 
+    def static_calibrate(self, tau_ext):
+        self.static_calibration_array.append(tau_ext)
+        self.static_calibration_count += 1
+
+        if self.static_calibration_count >= self.STATIC_CALIBRATION_SAMPLES:
+            self.static_calibration_offset = np.mean(self.static_calibration_array, axis=0)
+            self.static_calibration_complete = True
+            rospy.loginfo(f"Panda static calibration complete. Offset: {self.static_calibration_offset}")
+
     def normal_jacobian(self, q):
         pin.forwardKinematics(self.model_pin, self.data_pin, q)
         pin.updateFramePlacement(self.model_pin, self.data_pin, self.frame_id)
@@ -125,7 +152,15 @@ class PandaWrapper:
     def callback(self, msg):
         tau_ext = np.array(msg.tau_ext_hat_filtered)
         q = np.array(msg.q)
-        self.process_data(tau_ext, q)
+        # Process measurement based on calibration type
+        if self.CALIBRATION_TYPE == 'static':
+            if not self.static_calibration_complete:
+                self.static_calibrate(tau_ext)
+            else:
+                self.process_data(tau_ext - self.static_calibration_offset, q)
+        else:
+            self.process_data(tau_ext, q)
+        
         
     def process_data(self, tau_ext, q):
 
@@ -137,17 +172,18 @@ class PandaWrapper:
         with torch.no_grad():
             corrected_wrench = self.model(wrench_tensor).squeeze(0).numpy()
 
-        contact_pos = self.estimate_contact_point(corrected_wrench)
-        force = corrected_wrench[:3]
+        contact_pos = self.estimate_contact_point(wrench)
+        force = wrench[:3]
 
         self.timer += 1
         if (self.timer >= 500):
+            print(f"Tau externe: {tau_ext}")
             print(f"Original wrench: {wrench}")
-            print(f"Corrected wrench: {corrected_wrench}")
+            #print(f"Corrected wrench: {corrected_wrench}")
             self.timer = 0
 
         # Publish messages with corrected wrench
-        self.publish_messages(corrected_wrench, contact_pos, force, tau_ext, J)
+        self.publish_messages(wrench, contact_pos, force, tau_ext, J)
 
     def publish_messages(self, wrench, contact_pos, force, tau_ext, jacobian):
         # Contact Force message
