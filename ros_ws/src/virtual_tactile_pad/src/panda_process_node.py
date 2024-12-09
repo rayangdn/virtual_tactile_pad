@@ -14,8 +14,6 @@ import tempfile
 import rospkg
 import torch
 import torch.nn as nn
-import joblib
-import pandas as pd
 
 # Load configuration
 config_path = os.path.join(os.path.dirname(__file__), '../config/config.yaml')
@@ -26,26 +24,6 @@ with open(config_path, 'r') as f:
 rospack = rospkg.RosPack()
 package_path = rospack.get_path('virtual_tactile_pad')
 
-class WrenchCorrectionMLP(nn.Module):
-    def __init__(self, input_size=6, hidden_sizes=[64, 32, 16]):
-        super(WrenchCorrectionMLP, self).__init__()
-        layers = []
-        layers.append(nn.Linear(input_size, hidden_sizes[0]))
-        layers.append(nn.ReLU())
-        layers.append(nn.BatchNorm1d(hidden_sizes[0]))
-        
-        for i in range(len(hidden_sizes)-1):
-            layers.append(nn.Linear(hidden_sizes[i], hidden_sizes[i+1]))
-            layers.append(nn.ReLU())
-            layers.append(nn.BatchNorm1d(hidden_sizes[i+1]))
-        
-        layers.append(nn.Linear(hidden_sizes[-1], input_size))
-        self.network = nn.Sequential(*layers)
-        self.residual_weight = nn.Parameter(torch.tensor([0.5]))
-        
-    def forward(self, x):
-        correction = self.network(x)
-        return x + self.residual_weight * correction
 
 class PandaWrapper:
 
@@ -65,12 +43,24 @@ class PandaWrapper:
 
         # Initialize particle filter parameters
         self.num_particles = 100
-        self.process_noise_std = 0.01
-        self.measurement_noise_std = 0.1
+
+        # Separate noise parameters for x and y
+        self.process_noise_std = {
+            'x': 0.005,  # Less process noise for x
+            'y': 0.015  # More process noise for y to account for higher uncertainty
+        }
+        self.measurement_noise_std = {
+            'x': 0.02,   # Less measurement noise for x
+            'y': 0.4     # More measurement noise for y
+        }
         self.pad_dims = [
             config['pad']['dimensions']['x'],
             config['pad']['dimensions']['y']
         ]
+
+        # Add moving average filter for y measurements
+        self.y_measurement_buffer = []
+        self.y_buffer_size = 5
         
         # Initialize particles (x, y positions)
         self.particles = np.random.uniform(
@@ -79,12 +69,6 @@ class PandaWrapper:
             size=(self.num_particles, 2)
         )
         self.weights = np.ones(self.num_particles) / self.num_particles
-
-        # Load ML model and scalers
-        model_dir = os.path.join(package_path, 'models')
-        self.ml_model = joblib.load(os.path.join(model_dir, 'wrench_correction_model.pkl'))
-        self.scaler_X = joblib.load(os.path.join(model_dir, 'scaler_X.pkl'))
-        self.scaler_y = joblib.load(os.path.join(model_dir, 'scaler_y.pkl'))
 
         # First process the xacro file into a URDF
         xacro_path = os.path.join(package_path, 'urdf/panda_arm.urdf.xacro')
@@ -154,12 +138,12 @@ class PandaWrapper:
         return (1.0 / (sigma * np.sqrt(2 * np.pi))) * np.exp(-0.5 * ((x - mu) / sigma) ** 2)
 
     def predict_particles(self):
-        noise = np.random.normal(
-            0,
-            self.process_noise_std,
-            size=self.particles.shape
-        )
-        self.particles += noise
+        # Apply different noise levels for x and y
+        noise_x = np.random.normal(0, self.process_noise_std['x'], size=self.num_particles)
+        noise_y = np.random.normal(0, self.process_noise_std['y'], size=self.num_particles)
+        
+        self.particles[:, 0] += noise_x
+        self.particles[:, 1] += noise_y
 
         # Ensure particles stay within pad boundaries
         self.particles = np.clip(
@@ -169,16 +153,16 @@ class PandaWrapper:
         )
 
     def update_particle_weights(self, measurement_pos):
-        # Calculate likelihoods for all particles at once
+        # Calculate likelihoods with different noise parameters for x and y
         likelihood_x = self.gaussian_prob(
             self.particles[:, 0],
             measurement_pos[0],
-            self.measurement_noise_std
+            self.measurement_noise_std['x']
         )
         likelihood_y = self.gaussian_prob(
             self.particles[:, 1],
             measurement_pos[1],
-            self.measurement_noise_std
+            self.measurement_noise_std['y']
         )
         
         # Update weights
@@ -287,30 +271,11 @@ class PandaWrapper:
         else:
             self.process_data(tau_ext, q)
         
-    def correct_wrench(self, wrench):
-
-        # Convert numpy array to DataFrame with proper feature names
-        wrench_df = pd.DataFrame([wrench], columns=self.WRENCH_FEATURES)
-
-        # Prepare input for ML model
-        wrench_scaled = self.scaler_X.transform(wrench_df)
-        
-        # Get ML model prediction
-        corrected_wrench_scaled = self.ml_model.predict(wrench_scaled)
-        
-        # Inverse transform the prediction
-        corrected_wrench = self.scaler_y.inverse_transform(corrected_wrench_scaled)
-        
-        return corrected_wrench.flatten()
-
     def process_data(self, tau_ext, q):
 
         J = self.normal_jacobian(q)
         wrench = self.estimate_external_wrench(J, tau_ext)
 
-        # Apply ML-based correction to the wrench
-        corrected_wrench = self.correct_wrench(wrench)
-        
         # Use corrected wrench for contact point estimation
         contact_pos = self.estimate_contact_point(wrench)
         force = wrench[:3]
@@ -337,7 +302,7 @@ class PandaWrapper:
         if (self.timer >= 500):
             # print(f"Tau externe: {tau_ext}")
             # print(f"Original wrench: {wrench}")
-            print(f"Panda wrench: {wrench}")
+            # print(f"Panda wrench: {wrench}")
             self.timer = 0
 
         # Publish messages with corrected wrench

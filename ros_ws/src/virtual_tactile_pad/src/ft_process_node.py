@@ -154,7 +154,7 @@ class FTSensorWrapper:
 
         self.timer += 1
         if (self.timer >= 500):
-            print(f"FT wrench: {wrench}")
+            # print(f"FT wrench: {wrench}")
             # print(f"FT contact pos {contact_pos}")
             # print(f"q: {q}")
             self.timer = 0

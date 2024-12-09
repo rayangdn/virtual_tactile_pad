@@ -100,6 +100,17 @@ RUN echo 'export PATH=/opt/openrobots/bin:$PATH' >> /home/${USER}/.bashrc && \
 # Switch back to user
 USER ${USER}
 
+# Install Python packages
+RUN pip3 install --no-cache-dir \
+    pandas \
+    matplotlib 
+
+# Install tkinter system dependencies and package
+RUN sudo apt-get update && \
+    sudo apt-get install -y \
+    python3-tk \
+    && sudo apt-get clean
+    
 # Final cleanup
 RUN sudo apt-get update && \
     sudo apt-get upgrade -y && \

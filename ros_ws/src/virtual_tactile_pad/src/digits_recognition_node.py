@@ -21,7 +21,7 @@ package_path = rospack.get_path('virtual_tactile_pad')
             
 class MNISTCNN(nn.Module):
     def __init__(self):
-        super(Net, self).__init__()
+        super(MNISTCNN, self).__init__()
         self.conv1 = nn.Conv2d(1, 32, 3, 1)
         self.conv2 = nn.Conv2d(32, 64, 3, 1)
         self.dropout1 = nn.Dropout2d(0.25)
@@ -45,7 +45,6 @@ class MNISTCNN(nn.Module):
         return output
     
 class DigitRecognizer:
-    
     def __init__(self):
         # Initialize ROS node
         rospy.init_node('digits_recognizer', anonymous=True)
@@ -87,7 +86,7 @@ class DigitRecognizer:
         self.clear_trajectory_file()
         
         # Subscribe to contact force topic
-        rospy.Subscriber("/ft_process_node/contact_force", 
+        rospy.Subscriber("/panda_process_node/contact_force", 
                          ContactForce, 
                          self.contact_callback)
         rospy.loginfo("Subscribed to FT sensor contact force topic")
