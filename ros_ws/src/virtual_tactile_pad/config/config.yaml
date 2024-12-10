@@ -63,5 +63,20 @@ digits_recognition:
     x: 0.5
     y: 0.2
 
+# Particle Filter Configuration
+particle_filter:
+  # Initialize particle filter parameters
+  num_particles: 100
+  
+  # Separate noise parameters for x and y
+  process_noise_std:
+    x: 0.005  # Less process noise for x
+    y: 0.015  # More process noise for y to account for higher uncertainty
+  
+  measurement_noise_std:
+    x: 0.08   # Less measurement noise for x
+    y: 0.4    # More measurement noise for y
+
+
 
  

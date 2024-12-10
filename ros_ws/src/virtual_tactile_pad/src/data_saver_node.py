@@ -32,7 +32,8 @@ class DataSaver:
                 'panda_x', 'panda_y', 'panda_z', 
                 'panda_force_x', 'panda_force_y', 'panda_force_z',
                 'panda_wrench_force_x', 'panda_wrench_force_y', 'panda_wrench_force_z',
-                'panda_wrench_torque_x', 'panda_wrench_torque_y', 'panda_wrench_torque_z'
+                'panda_wrench_torque_x', 'panda_wrench_torque_y', 'panda_wrench_torque_z',
+                'raw_contact_x', 'raw_contact_y', 'raw_contact_z'  # Added raw contact position
             ])
             headers.extend([f'tau_ext_{i}' for i in range(7)])
             headers.extend([f'jacobian_{i}_{j}' for i in range(6) for j in range(7)])
@@ -48,6 +49,7 @@ class DataSaver:
         self.latest_ft_wrench = None if self.use_ft_sensor else []
         self.latest_panda_data = None if self.use_panda else []
         self.latest_panda_wrench = None if self.use_panda else []
+        self.latest_raw_contact = None if self.use_panda else []  # Added raw contact storage
         self.latest_pose_data = None if self.use_optitrack else []
         self.latest_tau_ext = None if self.use_panda else []
         self.latest_jacobian = None if self.use_panda else []
@@ -81,6 +83,11 @@ class DataSaver:
                 ContactForce,
                 self.panda_contact_callback
             )
+            self.raw_contact_sub = rospy.Subscriber(  # Added raw contact subscriber
+                "/panda_process_node/raw_contact_pos",
+                Float64MultiArray,
+                self.raw_contact_callback
+            )
             self.tau_ext_sub = rospy.Subscriber(
                 "/panda_process_node/tau_ext",
                 Float64MultiArray,
@@ -102,6 +109,7 @@ class DataSaver:
         rospy.Timer(rospy.Duration(self.write_interval), self.write_data)
         rospy.loginfo(f"Saving data to: {self.filename}")
         rospy.loginfo("Data logger initialized")
+
 
     def ft_wrench_callback(self, msg):
         if self.use_ft_sensor:
@@ -147,6 +155,10 @@ class DataSaver:
                 msg.pose.orientation.z, msg.pose.orientation.w
             ]
 
+    def raw_contact_callback(self, msg): 
+        if self.use_panda:
+            self.latest_raw_contact = list(msg.data)  
+
     def write_data(self, event=None):
         current_time = rospy.get_time()
         
@@ -160,6 +172,7 @@ class DataSaver:
             conditions.extend([
                 self.latest_panda_data is not None,
                 self.latest_panda_wrench is not None,
+                self.latest_raw_contact is not None,
                 self.latest_tau_ext is not None,
                 self.latest_jacobian is not None
             ])
@@ -176,6 +189,7 @@ class DataSaver:
             if self.use_panda:
                 row_data.extend(self.latest_panda_data)
                 row_data.extend(self.latest_panda_wrench)
+                row_data.extend(self.latest_raw_contact) 
                 row_data.extend(self.latest_tau_ext)
                 row_data.extend(self.latest_jacobian)
 

@@ -29,11 +29,6 @@ class PandaWrapper:
 
     VALID_CALIBRATION_TYPES = config['calibration']['types']
 
-    WRENCH_FEATURES = [
-        'panda_wrench_force_x', 'panda_wrench_force_y', 'panda_wrench_force_z',
-        'panda_wrench_torque_x', 'panda_wrench_torque_y', 'panda_wrench_torque_z'
-    ]
-
     def __init__(self, panda_pos=np.array([config['panda']['position']['x'],
                                            config['panda']['position']['y'],
                                            config['panda']['position']['z']], dtype=float)):
@@ -41,26 +36,24 @@ class PandaWrapper:
         # Initialize ROS node
         rospy.init_node('panda_process', anonymous=True)
 
-        # Initialize particle filter parameters
-        self.num_particles = 100
-
-        # Separate noise parameters for x and y
+        # Initialize particle filter parameters from config
+        self.num_particles = config['particle_filter']['num_particles']
+        
+        # Get noise parameters for x and y from config
         self.process_noise_std = {
-            'x': 0.005,  # Less process noise for x
-            'y': 0.015  # More process noise for y to account for higher uncertainty
+            'x': config['particle_filter']['process_noise_std']['x'],
+            'y': config['particle_filter']['process_noise_std']['y']
         }
+        
         self.measurement_noise_std = {
-            'x': 0.02,   # Less measurement noise for x
-            'y': 0.4     # More measurement noise for y
+            'x': config['particle_filter']['measurement_noise_std']['x'],
+            'y': config['particle_filter']['measurement_noise_std']['y']
         }
+        # Get pad dimensions
         self.pad_dims = [
             config['pad']['dimensions']['x'],
             config['pad']['dimensions']['y']
         ]
-
-        # Add moving average filter for y measurements
-        self.y_measurement_buffer = []
-        self.y_buffer_size = 5
         
         # Initialize particles (x, y positions)
         self.particles = np.random.uniform(
@@ -113,6 +106,7 @@ class PandaWrapper:
         self.contact_force_pub = rospy.Publisher('/panda_process_node/contact_force', ContactForce, queue_size=10)
         self.wrench_pub = rospy.Publisher('/panda_process_node/wrench', WrenchStamped, queue_size=10)
         self.tau_ext_pub = rospy.Publisher('/panda_process_node/tau_ext', Float64MultiArray, queue_size=10)
+        self.raw_contact_pos = rospy.Publisher('/panda_process_node/raw_contact_pos', Float64MultiArray, queue_size=10)
         self.jacobian_pub = rospy.Publisher('/panda_process_node/jacobian', Float64MultiArray, queue_size=10)
 
         # Create subscriber to the franka_states topic
@@ -278,8 +272,8 @@ class PandaWrapper:
 
         # Use corrected wrench for contact point estimation
         contact_pos = self.estimate_contact_point(wrench)
+        raw_contact_pos = contact_pos.copy()
         force = wrench[:3]
-
         # Apply particle filter if force magnitude is above threshold
         force_magnitude = np.linalg.norm(force)
         if force_magnitude > config['processing']['force_threshold']:
@@ -306,9 +300,9 @@ class PandaWrapper:
             self.timer = 0
 
         # Publish messages with corrected wrench
-        self.publish_messages(wrench, contact_pos, force, tau_ext, J)
+        self.publish_messages(wrench, raw_contact_pos, contact_pos, force, tau_ext, J)
 
-    def publish_messages(self, wrench, contact_pos, force, tau_ext, jacobian):
+    def publish_messages(self, wrench, raw_contact_pos, contact_pos, force, tau_ext, jacobian):
         # Contact Force message
         contact_msg = ContactForce()
         contact_msg.header.stamp = rospy.Time.now()
@@ -334,6 +328,12 @@ class PandaWrapper:
         self.wrench_pub.publish(wrench_msg)
 
         # Other messages
+
+        raw_contact_pos_msg = Float64MultiArray()
+        raw_contact_pos_msg.data = raw_contact_pos.tolist()  
+        self.raw_contact_pos.publish(raw_contact_pos_msg)
+
+ 
         tau_msg = Float64MultiArray()
         tau_msg.data = tau_ext.tolist()
         self.tau_ext_pub.publish(tau_msg)
