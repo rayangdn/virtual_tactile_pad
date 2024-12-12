@@ -253,12 +253,6 @@
                 </geometry>
                 <material name="adapter_gray" />
             </visual>
-            <collision>
-                <origin xyz="0 0 0" rpy="0 0 0" />
-                <geometry>
-                    <mesh filename="package://virtual_tactile_pad/urdf/meshes/adapter.stl" />
-                </geometry>
-            </collision>
             <inertial>
                 <mass value="0.157201" />
                 <origin xyz="0 0 0" rpy="0 0 0" />
@@ -280,12 +274,6 @@
                 </geometry>
                 <material name="ati_net_gamma_gray" />
             </visual>
-            <collision>
-                <origin xyz="0 0 0" rpy="0 0 0.523796327" />
-                <geometry>
-                    <mesh filename="package://virtual_tactile_pad/urdf/meshes/ati_net_gamma.stl" />
-                </geometry>
-            </collision>
             <inertial>
                 <mass value="0.335594" />
                 <origin xyz="0 0 0" rpy="0 0 0.523796327" />
@@ -306,11 +294,6 @@
                 </geometry>
                 <material name="mounting_pad_gray" />
             </visual>
-            <collision>
-                <geometry>
-                    <mesh filename="package://virtual_tactile_pad/urdf/meshes/mounting_pad.stl" />
-                </geometry>
-            </collision>
             <inertial>
                 <mass value="0.064186" />
                 <inertia ixx="1.2643e-5" ixy="0.0" ixz="0.0" iyy="1.6296014e-5" iyz="0.0"
@@ -333,11 +316,6 @@
                 </geometry>
                 <material name="mounting_pad_gray" />
             </visual>
-            <collision>
-                <geometry>
-                    <mesh filename="package://virtual_tactile_pad/urdf/meshes/mounting_pad.stl" />
-                </geometry>
-            </collision>
             <inertial>
                 <mass value="0.064186" />
                 <inertia ixx="1.2643e-5" ixy="0.0" ixz="0.0" iyy="1.6296014e-5" iyz="0.0"
@@ -360,11 +338,6 @@
             </geometry>
             <material name="pad_blue" />
         </visual>
-        <collision>
-            <geometry>
-                <mesh filename="package://virtual_tactile_pad/urdf/meshes/pad.stl" />
-            </geometry>
-        </collision>
         <inertial>
             <mass value="0.145376" />
             <inertia ixx="2.345e-4" ixy="0.0" ixz="0.0" iyy="4.074e-4" iyz="0.0" izz="1.733e-4" />

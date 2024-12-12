@@ -32,6 +32,7 @@ RUN apt-get update -y && \
     ros-${ROS_DISTRO}-joint-state-publisher-gui \
     ros-${ROS_DISTRO}-rqt \
     ros-${ROS_DISTRO}-rqt-common-plugins \
+    ros-${ROS_DISTRO}-moveit \
     build-essential \
     cmake \
     git \
@@ -108,9 +109,8 @@ RUN pip3 install --no-cache-dir \
 # Install tkinter system dependencies and package
 RUN sudo apt-get update && \
     sudo apt-get install -y \
-    python3-tk \
-    && sudo apt-get clean
-    
+    python3-tk 
+
 # Final cleanup
 RUN sudo apt-get update && \
     sudo apt-get upgrade -y && \
