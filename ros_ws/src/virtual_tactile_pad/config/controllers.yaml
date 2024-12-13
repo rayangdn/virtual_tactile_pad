@@ -1,14 +1,36 @@
-move_group:
-  controller_list:
-    - name: position_joint_trajectory_controller
-      action_ns: follow_joint_trajectory
-      type: FollowJointTrajectory
-      default: true
-      joints:
-        - panda_joint1
-        - panda_joint2
-        - panda_joint3
-        - panda_joint4
-        - panda_joint5
-        - panda_joint6
-        - panda_joint7
+# Controller list for MoveIt
+controller_list:
+  - name: position_joint_trajectory_controller
+    action_ns: follow_joint_trajectory
+    type: FollowJointTrajectory
+    default: true
+    joints:
+      - panda_joint1
+      - panda_joint2
+      - panda_joint3
+      - panda_joint4
+      - panda_joint5
+      - panda_joint6
+      - panda_joint7
+
+# Position controller configuration
+position_joint_trajectory_controller:
+  type: position_controllers/JointTrajectoryController
+  joints:
+    - panda_joint1
+    - panda_joint2
+    - panda_joint3
+    - panda_joint4
+    - panda_joint5
+    - panda_joint6
+    - panda_joint7
+  constraints:
+    goal_time: 0.5
+    stopped_velocity_tolerance: 0.05
+    panda_joint1: {trajectory: 0.1, goal: 0.1}
+    panda_joint2: {trajectory: 0.1, goal: 0.1}
+    panda_joint3: {trajectory: 0.1, goal: 0.1}
+    panda_joint4: {trajectory: 0.1, goal: 0.1}
+    panda_joint5: {trajectory: 0.1, goal: 0.1}
+    panda_joint6: {trajectory: 0.1, goal: 0.1}
+    panda_joint7: {trajectory: 0.1, goal: 0.1}
