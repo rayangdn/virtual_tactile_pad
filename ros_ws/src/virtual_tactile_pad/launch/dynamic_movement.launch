@@ -1,0 +1,20 @@
+<launch>
+    <!-- Load controller configuration -->
+    <rosparam command="load" file="$(find virtual_tactile_pad)/config/controllers.yaml" />
+    
+    <!-- Spawn controllers -->
+    <node name="controller_spawner" pkg="controller_manager" type="spawner" respawn="false"
+        output="screen" args="position_joint_trajectory_controller" />
+    
+    <!-- Launch MoveIt configuration -->
+    <include file="$(find panda_moveit_config)/launch/move_group.launch">
+        <arg name="load_robot_description" value="false" /> 
+        <arg name="load_gripper" value="false"/>
+        <arg name="pipeline" value="ompl" />
+        <arg name="moveit_controller_manager" value="ros_control" />
+        <rosparam command="load" file="$(find virtual_tactile_pad)/config/controllers.yaml" ns="move_group"/>
+    </include>
+
+    <!-- Launch the Python node -->
+    <node name="dynamic_movement" pkg="virtual_tactile_pad" type="dynamic_movement.py" output="screen" />
+</launch>

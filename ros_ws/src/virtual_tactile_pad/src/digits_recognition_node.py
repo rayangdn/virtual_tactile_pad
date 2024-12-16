@@ -86,7 +86,7 @@ class DigitRecognizer:
         self.clear_trajectory_file()
         
         # Subscribe to contact force topic
-        rospy.Subscriber("/panda_process_node/contact_force", 
+        rospy.Subscriber("/ft_process_node/contact_force", 
                          ContactForce, 
                          self.contact_callback)
         rospy.loginfo("Subscribed to FT sensor contact force topic")

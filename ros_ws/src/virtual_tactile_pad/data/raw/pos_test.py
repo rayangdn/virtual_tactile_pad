@@ -108,6 +108,6 @@ def plot_comparison(df, save_dir='plots'):
 
 if __name__ == "__main__":
     # Read the CSV file
-    df = pd.read_csv('data_pos_10.csv')  
+    df = pd.read_csv('data_20241216_154337.csv')  
     # Create comparison plot
     plot_comparison(df)

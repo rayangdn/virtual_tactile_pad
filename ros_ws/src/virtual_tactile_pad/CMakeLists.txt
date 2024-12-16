@@ -38,6 +38,6 @@ catkin_install_python(PROGRAMS
   src/data_saver_node.py
   src/digits_recognition_node.py
   src/optitrack_calibration_node.py
-  src/pos_controller.py
+  src/dynamic_movement.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )

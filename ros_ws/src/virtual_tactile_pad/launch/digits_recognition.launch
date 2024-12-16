@@ -1,7 +1,7 @@
 <launch>
   <!-- Define arguments for digits_recognition -->
-  <arg name="use_ft_sensor" default="false" />
-  <arg name="use_panda" default="true" />
+  <arg name="use_ft_sensor" default="true" />
+  <arg name="use_panda" default="false" />
   <arg name="use_simulation" default="false" />
   <arg name="calibration_type" default="static" />
 
