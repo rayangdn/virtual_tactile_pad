@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import os
 import ast
+from matplotlib.image import imread
 
 def prepare_data(df):
     """
@@ -54,13 +55,9 @@ def plot_data(csv_path):
             
         # Prepare data
         df = prepare_data(df)
-
-        grid_data = df['grid'].iloc[-1]
+        
         prediction = df['prediction'].iloc[-1]
         confidence = df['confidence'].iloc[-1]
-        
-        # Convert string representation back to numpy array
-        grid = np.array(ast.literal_eval(grid_data))
             
         # Create interpolated trajectory
         x_interp, y_interp = create_trajectory(df)
@@ -68,38 +65,45 @@ def plot_data(csv_path):
         # Clear previous plot
         plt.clf()
 
-        plt.subplot(1, 3, 1)
-        # Plot points and line
+        # First subplot (top) - Trajectory
+        plt.subplot(2, 1, 1)
+        
+        # Add blue background
         plt.fill([0, 0.12, 0.12, 0], [0, 0, 0.14, 0.14], color='blue', alpha=0.2)
+        
         plt.scatter(df['contact_x'], df['contact_y'], label='Original Points')
         plt.plot(x_interp, y_interp, 'r-', alpha=0.5, label='Interpolated')
 
-        # Add labels and grid
-        plt.xlabel('X Position')
-        plt.ylabel('Y Position')
         plt.title('Trajectory', fontsize=20)
-        plt.grid(False)
-        plt.axis('equal')
+        plt.axis('equal')  # Keep equal aspect ratio
+        plt.axis('off')    # Hide axes
         plt.legend()
-        
-        plt.subplot(1, 3, 2)
-        # Plot grid
-        plt.imshow(grid, cmap='gray')
-        plt.title('Grid', fontsize=20)
-        plt.axis('on')
-        plt.grid(True, alpha=0.3)
 
-        plt.subplot(1, 3, 3)
-        # Prediction results
-        prediction_text = [
-            f'Predicted Digit: {prediction}',
-            f'Confidence: {confidence:.2%}',
-        ]    
-        plt.text(0.1, 0.6, '\n'.join(prediction_text), fontsize=20)
-        plt.axis('off')
+        # Second subplot (bottom) - Digit Image or Text
+        plt.subplot(2, 1, 2)
         plt.title('Recognition Results', fontsize=20)
-
-        #plt.savefig(f'../img/digit_predicted_{prediction}.png', bbox_inches='tight', dpi=300)
+        plt.axis('off')
+        
+        # Check confidence threshold
+        if confidence < 0.7:  # 70% threshold
+            plt.text(0.5, 0.5, 'No digit recognized', ha='center', va='center', fontsize=20)
+        else:
+            try:
+                # Construct image path based on predicted digit
+                current_dir = os.path.dirname(os.path.abspath(__file__))
+                img_path = os.path.join(os.path.dirname(current_dir), 'scripts', 'digits_img', f'{int(prediction)}.jpeg')
+                
+                if os.path.exists(img_path):
+                    img = imread(img_path)
+                    plt.imshow(img)
+                else:
+                    plt.text(0.5, 0.5, 'Image not found', ha='center', va='center', fontsize=16)
+                    
+            except Exception as e:
+                plt.text(0.5, 0.5, f'Error loading image: {str(e)}', ha='center', va='center', fontsize=16)
+        
+        # Adjust layout to prevent overlap
+        plt.tight_layout()
         
         # Update display
         plt.draw()
@@ -118,7 +122,7 @@ def main():
     
     # Initialize plot
     plt.ion()  # Enable interactive mode
-    plt.figure(figsize=(12, 6))
+    plt.figure(figsize=(8, 10))
     
     last_modified = 0
     

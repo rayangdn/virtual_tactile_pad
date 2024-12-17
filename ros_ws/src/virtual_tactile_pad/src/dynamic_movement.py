@@ -32,58 +32,74 @@ class CartesianMovement:
         # self.move_group.set_max_velocity_scaling_factor(0.01)
         # self.move_group.set_max_acceleration_scaling_factor(0.01) # LOW
 
-        # self.move_group.set_max_velocity_scaling_factor(0.05)
-        # self.move_group.set_max_acceleration_scaling_factor(0.05) # MID
+        self.move_group.set_max_velocity_scaling_factor(0.05)
+        self.move_group.set_max_acceleration_scaling_factor(0.05) # MID
 
-        self.move_group.set_max_velocity_scaling_factor(0.1)
-        self.move_group.set_max_acceleration_scaling_factor(0.1) # HIGH
+        # self.move_group.set_max_velocity_scaling_factor(0.1)
+        # self.move_group.set_max_acceleration_scaling_factor(0.1) # HIGH
+
 
         self.move_group.set_goal_position_tolerance(0.01)  # 1mm tolerance
         self.move_group.set_goal_orientation_tolerance(0.01)  # ~0.57 degrees
         self.move_group.set_planner_id("RRTstar")
 
+        self.start_joints = [-0.8001161583157639, 0.30887033649841145, 1.0422925187635175, 
+                             -1.8155412556512804, -0.24074681758218341, 2.5782509957748516, 
+                              0.15934831999525723]
+
+
+        if not self.move_to_joint_positions(self.start_joints):
+            print("Failed to reach start position. Continuing...")
+
         # TRANSLATION MOVEMENT
-        # # Define the two poses
+        # Define the two poses
 
-        # # Get current pose as starting point
-        # current_pose = self.move_group.get_current_pose().pose
+        # Get current pose as starting point
+        current_pose = self.move_group.get_current_pose().pose
         
-        # # Create two poses with different heights
-        # self.pose1 = Pose()
-        # self.pose1.position = Point(
-        #     x=current_pose.position.x - 0.2,  # Move 20cm back from current position
-        #     y=current_pose.position.y - 0.2, # Move 20cm left from current position
-        #     z=current_pose.position.z + 0.4  # Move 40cm up from current position
-        # )
-        # # Keep the same orientation
-        # self.pose1.orientation = current_pose.orientation
+        # Create two poses with different heights
+        self.pose1 = Pose()
+        self.pose1.position = Point(
+            x=current_pose.position.x - 0.1,  # Move 20cm back from current position
+            y=current_pose.position.y - 0.2, # Move 30cm left from current position
+            z=current_pose.position.z + 0.1  # Move 40cm up from current position
+        )
+        self.pose1.orientation = current_pose.orientation
 
-        # self.pose2 = Pose()
-        # self.pose2.position = Point(
-        #     x=current_pose.position.x,
-        #     y=current_pose.position.y,
-        #     z=current_pose.position.z
-        # )
-        # self.pose2.orientation = current_pose.orientation
+        self.pose2 = Pose()
+        self.pose2.position = Point(
+            x=current_pose.position.x - 0.1,
+            y=current_pose.position.y + 0.2,
+            z=current_pose.position.z + 0.1
+        )
+        self.pose2.orientation = current_pose.orientation
+
+        self.pose3 = Pose()
+        self.pose3.position = Point(
+            x=current_pose.position.x,
+            y=current_pose.position.y,
+            z=current_pose.position.z
+        )
+        self.pose3.orientation = current_pose.orientation
 
         # ORIENTATION MOVEMENT
-        # Get current joint values
-        self.current_joints = self.move_group.get_current_joint_values()
+        # # Get current joint values
+        #self.current_joints = self.move_group.get_current_joint_values()
+
+        # # Create two joint configurations for rotation
+        # self.joints1 = list(self.current_joints)
+        # self.joints2 = list(self.current_joints)
         
-        # Create two joint configurations for rotation
-        self.joints1 = list(self.current_joints)
-        self.joints2 = list(self.current_joints)
-        
-        rotation_angle_1 = math.radians(45)
-        rotation_angle_2 = math.radians(30)
+        # rotation_angle_1 = math.radians(45)
+        # rotation_angle_2 = math.radians(30)
 
         # Rotate along y axis 
-        self.joints1[-1] = self.current_joints[-1] + rotation_angle_1
-        self.joints2[-1] = self.current_joints[-1] - rotation_angle_1
+        # self.joints1[-1] = self.current_joints[-1] + rotation_angle_1
+        # self.joints2[-1] = self.current_joints[-1] - rotation_angle_1
 
-        # Rotate along x axis 
-        self.joints1[-2] = self.current_joints[-2] + rotation_angle_2
-        self.joints2[-2] = self.current_joints[-2] - rotation_angle_2
+        # # Rotate along x axis 
+        # self.joints1[-2] = self.current_joints[-2] + rotation_angle_2
+        # self.joints2[-2] = self.current_joints[-2] - rotation_angle_2
 
     def move_to_joint_positions(self, joint_positions):
         if self.shutdown_flag:
@@ -143,34 +159,45 @@ class CartesianMovement:
             rospy.sleep(0.1)
             print("Waiting for controller...")
 
-        print("\nStarting vertical movement loop...")
+
+        print("\nStarting movement loop...")
+
+        if not self.move_to_joint_positions(self.start_joints):
+            print("Failed to reach start position. Continuing...")
+
         while not rospy.is_shutdown() and not self.shutdown_flag:
             try:
                 # TRANSLATION MOVEMENT
-                # # Move to position 1
-                # if not self.move_to_pose(self.pose1):
-                #     print("Failed to reach position 1. Continuing...")
-                #     if self.shutdown_flag:
-                #         break
+                # Move to position 1
+                if not self.move_to_pose(self.pose1):
+                    print("Failed to reach position 1. Continuing...")
+                    if self.shutdown_flag:
+                        break
 
-                # # Move to position 2
-                # if not self.move_to_pose(self.pose2):
-                #     print("Failed to reach position 2. Continuing...")
-                #     if self.shutdown_flag:
-                #         break
+                # Move to position 2
+                if not self.move_to_pose(self.pose2):
+                    print("Failed to reach position 2. Continuing...")
+                    if self.shutdown_flag:
+                        break
+
+                # Move to position 3
+                if not self.move_to_pose(self.pose3):
+                    print("Failed to reach position 3. Continuing...")
+                    if self.shutdown_flag:
+                        break
 
                 # ROTATION MOVEMENT
                 # Rotate joints 1
-                if not self.move_to_joint_positions(self.joints1):
-                    print("Failed to reach rotation 1. Continuing...")
-                    if self.shutdown_flag:
-                        break
+                # if not self.move_to_joint_positions(self.joints1):
+                #     print("Failed to reach rotation 1. Continuing...")
+                #     if self.shutdown_flag:
+                #         break
 
-                # Rotate joints 2
-                if not self.move_to_joint_positions(self.joints2):
-                    print("Failed to reach rotation 2. Continuing...")
-                    if self.shutdown_flag:
-                        break
+                # # Rotate joints 2
+                # if not self.move_to_joint_positions(self.joints2):
+                #     print("Failed to reach rotation 2. Continuing...")
+                #     if self.shutdown_flag:
+                #         break
 
                 print("\nCompleted one movement cycle, starting next iteration...")
 

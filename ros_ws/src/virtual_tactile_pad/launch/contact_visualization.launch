@@ -1,7 +1,7 @@
 <launch>
   <!-- Define arguments-->
   <arg name="use_ft_sensor" default="true" />
-  <arg name="use_panda" default="true" />
+  <arg name="use_panda" default="false" />
   <arg name="use_simulation" default="false" />
   <arg name="calibration_type" default="static" />
   <arg name="robot_ip" default="172.16.0.1" unless="$(arg use_simulation)" />

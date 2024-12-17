@@ -62,6 +62,11 @@ Visualization Manager:
         Expand Link Details: false
         Expand Tree: false
         Link Tree Style: ""
+        adapter:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
         ati_net_gamma:
           Alpha: 1
           Show Axes: false
@@ -134,11 +139,19 @@ Visualization Manager:
       Frame Timeout: 15
       Frames:
         All Enabled: true
+        adapter:
+          Value: true
         ati_net_gamma:
           Value: true
         mounting_pad:
           Value: true
         pad:
+          Value: true
+        panda_EE:
+          Value: true
+        panda_K:
+          Value: true
+        panda_NE:
           Value: true
         panda_link0:
           Value: true
@@ -174,9 +187,14 @@ Visualization Manager:
                     panda_link6:
                       panda_link7:
                         panda_link8:
-                          ati_net_gamma:
-                            mounting_pad:
-                              pad:
+                          adapter:
+                            ati_net_gamma:
+                              mounting_pad:
+                                pad:
+                                  {}
+                          panda_NE:
+                            panda_EE:
+                              panda_K:
                                 {}
       Update Interval: 0
       Value: true
@@ -190,7 +208,7 @@ Visualization Manager:
       Value: true
   Enabled: true
   Global Options:
-    Background Color: 48; 48; 48
+    Background Color: 235; 235; 235
     Default Light: true
     Fixed Frame: panda_link0
     Frame Rate: 30
@@ -232,9 +250,9 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.6253980398178101
+      Pitch: 0.540398120880127
       Target Frame: <Fixed Frame>
-      Yaw: 5.643580436706543
+      Yaw: 5.733582019805908
     Saved: ~
 Window Geometry:
   Displays:
@@ -253,4 +271,4 @@ Window Geometry:
     collapsed: true
   Width: 1048
   X: 205
-  Y: 32
+  Y: 27
