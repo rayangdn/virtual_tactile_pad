@@ -39,5 +39,6 @@ catkin_install_python(PROGRAMS
   src/digits_recognition_node.py
   src/optitrack_calibration_node.py
   src/dynamic_movement.py
+  src/cylinder_balancing.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )

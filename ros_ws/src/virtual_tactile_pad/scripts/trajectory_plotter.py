@@ -85,7 +85,7 @@ def plot_data(csv_path):
         plt.axis('off')
         
         # Check confidence threshold
-        if confidence < 0.7:  # 70% threshold
+        if confidence < 0.5:  # 50% threshold
             plt.text(0.5, 0.5, 'No digit recognized', ha='center', va='center', fontsize=20)
         else:
             try:
