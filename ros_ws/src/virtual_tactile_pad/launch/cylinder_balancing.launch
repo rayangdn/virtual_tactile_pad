@@ -6,4 +6,7 @@
   <!-- Load the controllers -->
   <node name="controller_spawner" pkg="controller_manager" type="spawner" respawn="false"
     output="screen" args="position_joint_trajectory_controller"/>
+
+  <node name="cylinder_balancing" pkg="virtual_tactile_pad" type="cylinder_balancing.py" output="screen" />
+
 </launch>
