@@ -87,5 +87,5 @@ def plot_wrench_z(file_path):
 
 # Usage
 # Replace 'your_file.csv' with your actual file path
-file_path = 'data_20241220_100607.csv'
+file_path = 'data_throwing_panda_ft.csv'
 plot_wrench_z(file_path)
