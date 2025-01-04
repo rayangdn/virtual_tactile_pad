@@ -75,5 +75,5 @@ def plot_throws(file_path):
 
 # Usage
 # Replace 'your_file.csv' with your actual file path
-file_path = 'data_20241220_101805.csv'
+file_path = 'data_throwing_panda_ft.csv'
 plot_throws(file_path)
