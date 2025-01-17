@@ -72,10 +72,6 @@ If you encounter network connectivity issues:
 - Check the IP configurations of both the robot and the FT sensor
 - Ensure no firewall rules are blocking the required ports
 
-## Contributing
-
-Please read our contributing guidelines before submitting pull requests to the project.
-
 ## License
 
 This project is licensed under the Apache License, Version 2.0 - see below for details:
