@@ -64,6 +64,7 @@ ls src/virtual_tactile_pad/launch/
 3. Install Docker and build the container
 4. Launch the ROS environment
 5. Run the desired launch file for your specific use case
+   
 (Demo videos are located on this [drive](https://drive.google.com/drive/u/1/folders/1xjCZFb9rxKVa-lkfhxeg2w6x7sw5DxhQ)
 
 ## Troubleshooting
